@@ -48,8 +48,6 @@ RUN wget https://jaist.dl.sourceforge.net/project/boost/boost/1.68.0/boost_1_68_
     rm -rf ./boost_1_68_0 && \
     rm -rf ./boost_1_68_0.tar.gz 
 
-# Install open3D
-
 # A weired problem that hasn't been solved yet
 RUN pip uninstall -y SharedArray && \
     pip install SharedArray

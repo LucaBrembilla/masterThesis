@@ -1,7 +1,7 @@
 #!bin/bash
 
 CGF_FILE=cfgs/kitti_models/pv_rcnn.yaml
-CKPT=pv_rcnn_8369.pth
+CKPT=pv_rcnn_7780.pth
 POINT_CLOUD_DATA=/home/brembilla/exp/shared_datasets/kitti/data/sync/2011_10_03/2011_10_03_drive_0027_sync/velodyne_points/data/0000000541.bin
 
 # cd ..

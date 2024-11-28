@@ -2,6 +2,7 @@ import argparse
 import glob
 from pathlib import Path
 
+"""
 try:
     import open3d
     from visual_utils import open3d_vis_utils as V
@@ -10,10 +11,12 @@ except:
     import mayavi.mlab as mlab
     from visual_utils import visualize_utils as V
     OPEN3D_FLAG = False
+"""
 
 import numpy as np
 import torch
 
+import _init_path
 from pcdet.config import cfg, cfg_from_yaml_file
 from pcdet.datasets import DatasetTemplate
 from pcdet.models import build_network, load_data_to_gpu
@@ -97,6 +100,14 @@ def main():
             load_data_to_gpu(data_dict)
             pred_dicts, _ = model.forward(data_dict)
 
+            """
+            print(data_dict['points'][:, 1:])
+            print(pred_dicts[0]['pred_boxes'])
+            print(pred_dicts[0]['pred_scores'])
+            print(pred_dicts[0]['pred_labels'])
+            """
+
+            """
             V.draw_scenes(
                 points=data_dict['points'][:, 1:], ref_boxes=pred_dicts[0]['pred_boxes'],
                 ref_scores=pred_dicts[0]['pred_scores'], ref_labels=pred_dicts[0]['pred_labels']
@@ -104,6 +115,7 @@ def main():
 
             if not OPEN3D_FLAG:
                 mlab.show(stop=True)
+            """
 
     logger.info('Demo done.')
 

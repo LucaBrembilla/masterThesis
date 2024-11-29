@@ -177,20 +177,31 @@ class Detector3DTemplate(nn.Module):
 
     def post_processing(self, batch_dict):
         """
-        Args:
-            batch_dict:
-                batch_size:
-                batch_cls_preds: (B, num_boxes, num_classes | 1) or (N1+N2+..., num_classes | 1)
-                                or [(B, num_boxes, num_class1), (B, num_boxes, num_class2) ...]
-                multihead_label_mapping: [(num_class1), (num_class2), ...]
-                batch_box_preds: (B, num_boxes, 7+C) or (N1+N2+..., 7+C)
-                cls_preds_normalized: indicate whether batch_cls_preds is normalized
-                batch_index: optional (N1+N2+...)
-                has_class_labels: True/False
-                roi_labels: (B, num_rois)  1 .. num_classes
-                batch_pred_labels: (B, num_boxes, 1)
-        Returns:
+        Post-processes raw model predictions by applying Non-Maximum Suppression (NMS) 
+        and selecting high-confidence predictions.
 
+        Args:
+            batch_dict (dict): A dictionary containing raw model outputs and metadata:
+                - batch_size (int): Number of samples in the batch.
+                - batch_cls_preds (torch.Tensor or list): Class predictions of shape 
+                (B, num_boxes, num_classes) or (N, num_classes), where B is the batch size 
+                and N is the total number of predictions. Can also be a list for multi-head models.
+                - multihead_label_mapping (list, optional): A mapping for multi-class NMS.
+                - batch_box_preds (torch.Tensor): Predicted bounding boxes of shape 
+                (B, num_boxes, 7+C) or (N, 7+C), where 7+C includes box dimensions and additional properties.
+                - cls_preds_normalized (bool): Indicates if class predictions are normalized.
+                - batch_index (torch.Tensor, optional): Index of the batch for each prediction (N elements).
+                - has_class_labels (bool): Indicates if predictions have class labels.
+                - roi_labels (torch.Tensor, optional): Region of Interest (RoI) labels.
+                - batch_pred_labels (torch.Tensor, optional): Predicted class labels for each box.
+
+        Returns:
+            tuple:
+                - pred_dicts (list): A list of dictionaries, one per batch sample, containing:
+                    - 'pred_boxes' (torch.Tensor): Final predicted boxes after NMS.
+                    - 'pred_scores' (torch.Tensor): Confidence scores for the predicted boxes.
+                    - 'pred_labels' (torch.Tensor): Class labels for the predicted boxes.
+                - recall_dict (dict): A dictionary containing recall metrics for evaluation.
         """
         post_process_cfg = self.model_cfg.POST_PROCESSING
         batch_size = batch_dict['batch_size']

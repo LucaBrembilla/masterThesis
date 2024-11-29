@@ -100,13 +100,7 @@ def main():
             load_data_to_gpu(data_dict)
             pred_dicts, _ = model.forward(data_dict)
 
-            """
-            print(data_dict['points'][:, 1:])
             print(pred_dicts[0]['pred_boxes'])
-            print(pred_dicts[0]['pred_scores'])
-            print(pred_dicts[0]['pred_labels'])
-            """
-
             """
             V.draw_scenes(
                 points=data_dict['points'][:, 1:], ref_boxes=pred_dicts[0]['pred_boxes'],

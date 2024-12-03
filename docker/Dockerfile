@@ -55,3 +55,11 @@ RUN pip uninstall -y SharedArray && \
     pip install SharedArray
 
 RUN pip install spconv-cu102
+
+# git clone https://github.com/traveller59/spconv.git --recursive
+# apt-get install -y libboost-all-dev
+# apt-get install -y cmake
+# cd spconv
+# pip install pccm
+# python setup.py bdist_wheel
+# pip install spconv-2.3.6-py3-none-any.whl

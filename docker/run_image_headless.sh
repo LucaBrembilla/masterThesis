@@ -4,7 +4,7 @@ cd ..
 
 CODE_FOLDER=/home/$(whoami)/project
 
-GPU_DEVICE=1
+GPU_DEVICE=3
 CPU_SET=8-11
 
 IMAGE_NAME=djiajun1206/pcdet

@@ -1,0 +1,32 @@
+# Base image for ROS (Melodic/Noetic, choose based on your setup)
+FROM osrf/ros:noetic-desktop-full
+
+# Set environment variables for ROS
+ENV ROS_DISTRO noetic
+ENV DEBIAN_FRONTEND noninteractive
+
+# Update and install dependencies
+RUN apt-get update && apt-get install -y \
+    python3-pip \
+    ros-${ROS_DISTRO}-rviz \
+    ros-${ROS_DISTRO}-rosbag \
+    ros-${ROS_DISTRO}-visualization-msgs \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create a workspace
+RUN mkdir -p /root/catkin_ws/src
+WORKDIR /root/catkin_ws
+
+# Initialize and build the workspace
+RUN /bin/bash -c "source /opt/ros/${ROS_DISTRO}/setup.bash && catkin_make"
+
+# Copy any custom scripts or tools (optional)
+# COPY ./your_scripts /root/catkin_ws/src/
+
+# Set up entrypoint
+COPY ./entrypoint.sh /
+RUN chmod +x /entrypoint.sh
+ENTRYPOINT ["/entrypoint.sh"]
+
+# Default command
+CMD ["bash"]

@@ -3,6 +3,7 @@
 **egg-info**
 **dist**
 data/*.npy
+data/
 *.pyc
 venv/
 *.idea/

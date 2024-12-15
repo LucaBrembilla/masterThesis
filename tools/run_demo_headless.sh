@@ -1,9 +1,11 @@
 #!bin/bash
 
-CGF_FILE=cfgs/kitti_models/pv_rcnn.yaml
-CKPT=/home/brembilla/exp/pretrained/pv_rcnn_8369.pth
-# POINT_CLOUD_DATA=/home/brembilla/exp/shared_datasets/kitti/kitti/training/velodyne/000063.bin
-POINT_CLOUD_DATA=/home/brembilla/exp/data/frame_1693_filtered.npy
+# CGF_FILE=cfgs/kitti_models/pv_rcnn.yaml
+CGF_FILE=/home/brembilla/exp/tools/cfgs/kitti_models/pointrcnn.yaml
+# CKPT=/home/brembilla/exp/pretrained/pv_rcnn_8369.pth
+CKPT=/home/brembilla/exp/pretrained/pointrcnn_7870.pth
+POINT_CLOUD_DATA=/home/brembilla/exp/shared_datasets/kitti/kitti/testing/velodyne/000001.bin
+# POINT_CLOUD_DATA=/home/brembilla/exp/data/zeroed_frame_0000.npy
 # cd ..
 
 # pip install spconv-cu102

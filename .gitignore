@@ -12,3 +12,5 @@ venv/
 *.bin
 output
 version.py
+pretrained/
+checkpoints/

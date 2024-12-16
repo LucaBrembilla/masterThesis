@@ -101,7 +101,14 @@ def main():
             pred_dicts, _ = model.forward(data_dict)
 
             print(f"pred_dicts: {pred_dicts}")
-            
+
+            # Save the predictions to a file
+            output_file = Path("/home/brembilla/exp/output/pnrr") / (Path(args.data_path).stem + ".txt")
+            output_file.parent.mkdir(parents=True, exist_ok=True)
+            with open(output_file, "w") as f:
+                for box in pred_dicts[0]['pred_boxes']:
+                    line = " ".join(map(str, box.tolist()))
+                    f.write(line + "\n")
             """
             V.draw_scenes(
                 points=data_dict['points'][:, 1:], ref_boxes=pred_dicts[0]['pred_boxes'],
@@ -111,7 +118,7 @@ def main():
             if not OPEN3D_FLAG:
                 mlab.show(stop=True)
             """
-
+            logger.info(f'Inference done. Results are saved in {output_file}')
     logger.info('Demo done.')
 
 

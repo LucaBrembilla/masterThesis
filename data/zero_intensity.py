@@ -26,6 +26,7 @@ def set_zero_intensity(pointcloud):
 
     print(f"New mean intensity: {np.mean(pointcloud[:, 3])}")
 
+    """
     print(f"Original mean z: {np.mean(pointcloud[:, 2])}")
     sub = np.max(pointcloud[:, 2])
     print(f"Original mean z: {np.mean(pointcloud[:, 2])}")
@@ -34,7 +35,14 @@ def set_zero_intensity(pointcloud):
     pointcloud[:, 2] = -pointcloud[:, 2]
     print(f"Inverted mean z: {np.mean(pointcloud[:, 2])}")
     pointcloud[:, 2] = pointcloud[:, 2] - np.mean(pointcloud[:, 2])
-    
+    """
+
+    print(f"Original mean z: {np.mean(pointcloud[:, 2])}")
+    sub = 4.4
+    pointcloud[:, 2] -= sub
+    print(f"Substracted {sub}, new mean z: {np.mean(pointcloud[:, 2])}")
+    pointcloud[:, 2] = -pointcloud[:, 2]
+    print(f"Inverted mean z: {np.mean(pointcloud[:, 2])}")
     return pointcloud
 
 def save_pointcloud(file_path, pointcloud):
@@ -44,7 +52,7 @@ def save_pointcloud(file_path, pointcloud):
 
 def main():
     # file_path = input("Enter the path to the point cloud file (.bin or .npy): ").strip()
-    file_path = "/home/brembilla/exp/shared_datasets/PNRR/ouster/frame_0250.npy"
+    file_path = "/home/brembilla/exp/shared_datasets/PNRR/ouster/frame_0000.npy"
     
     # output_path = f"{file_path[:-3]}_traslated.npy"
     output_path = f"zeroed_{file_path.split('/')[-1]}"

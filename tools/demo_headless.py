@@ -22,6 +22,74 @@ from pcdet.datasets import DatasetTemplate
 from pcdet.models import build_network, load_data_to_gpu
 from pcdet.utils import common_utils
 
+def pc_preprocess(pointcloud):
+    
+    if pointcloud.shape[1] < 4:
+        raise ValueError("Pointcloud data must have at least 4 dimensions (x, y, z, intensity).")
+    
+    print(f"Original mean intensity: {np.mean(pointcloud[:, 3])}")
+
+    # Set intensity to 0
+    pointcloud[:, 3] = 0
+
+    print(f"New mean intensity: {np.mean(pointcloud[:, 3])}")
+
+    """
+    print(f"Original mean z: {np.mean(pointcloud[:, 2])}")
+    sub = np.max(pointcloud[:, 2])
+    print(f"Original mean z: {np.mean(pointcloud[:, 2])}")
+    pointcloud[:, 2] -= sub
+    print(f"Substracted {sub}, new mean z: {np.mean(pointcloud[:, 2])}")
+    pointcloud[:, 2] = -pointcloud[:, 2]
+    print(f"Inverted mean z: {np.mean(pointcloud[:, 2])}")
+    pointcloud[:, 2] = pointcloud[:, 2] - np.mean(pointcloud[:, 2])
+    """
+
+    print(f"Original mean z: {np.mean(pointcloud[:, 2])}")
+    sub = 4.4
+    pointcloud[:, 2] -= sub
+    print(f"Substracted {sub}, new mean z: {np.mean(pointcloud[:, 2])}")
+    pointcloud[:, 2] = -pointcloud[:, 2]
+    print(f"Inverted mean z: {np.mean(pointcloud[:, 2])}")
+    return pointcloud
+
+def bb_postprocess(input_file, output_file, mean_value=0, add_amount=4.4):
+    """
+    Process the fourth number in each line of the input file by inverting it
+    and adding a specified amount, then save the results to the output file.
+
+    Parameters:
+    - input_file (str): Path to the input text file.
+    - output_file (str): Path to the output text file.
+    - mean_value (float): Mean value to add to each number before inverting.
+    - add_amount (float): Amount to add to each inverted number.
+    """
+    try:
+        # Read the file line by line
+        with open(input_file, 'r') as file:
+            lines = file.readlines()
+        
+        processed_lines = []
+        
+        # Process each line
+        for line in lines:
+            # Split the line into numbers
+            numbers = line.split()
+            # Process the third number (index 2)
+            numbers[3] = str(-(float(numbers[3]) + mean_value) + add_amount)
+            # Convert back to a space-separated string
+            processed_line = " ".join(numbers)
+            processed_lines.append(processed_line)
+        
+        # Write the processed lines to the output file
+        with open(output_file, 'w') as file:
+            file.write("\n".join(processed_lines))
+        
+        print(f"Post-processing complete! Results saved to {output_file}")
+    
+    except Exception as e:
+        print(f"An error occurred: {e}")
+
 
 class DemoDataset(DatasetTemplate):
     def __init__(self, dataset_cfg, class_names, training=True, root_path=None, logger=None, ext='.bin'):
@@ -53,6 +121,9 @@ class DemoDataset(DatasetTemplate):
             points = np.load(self.sample_file_list[index])
         else:
             raise NotImplementedError
+
+        print("Modifying the input pointcloud...")
+        points = pc_preprocess(points)
 
         input_dict = {
             'points': points,
@@ -103,12 +174,30 @@ def main():
             print(f"pred_dicts: {pred_dicts}")
 
             # Save the predictions to a file
-            output_file = Path("/home/brembilla/exp/output/pnrr") / (Path(args.data_path).stem + ".txt")
+            # output_file = Path("/home/brembilla/exp/output/pnrr") / (Path(args.data_path).stem + str(idx) +".txt")
+            output_file = Path(f"/home/brembilla/exp/output/pnrr/pvrccpp/{idx:04d}.txt")
             output_file.parent.mkdir(parents=True, exist_ok=True)
+
+            # Format of the results:
+            # pred_label x_center y_center z_center x_size y_size z_size yaw pred_score pred_cls_score pred_iou_scores
+            # Labels: 1 - Car/Vehicle, 2 - Pedestrian, 3 - Cyclist
             with open(output_file, "w") as f:
-                for box in pred_dicts[0]['pred_boxes']:
-                    line = " ".join(map(str, box.tolist()))
+                for i, box in enumerate(pred_dicts[0]['pred_boxes']):
+                    # Extract individual values
+                    x_center, y_center, z_center, x_size, y_size, z_size, yaw = box.tolist()
+                    pred_label = pred_dicts[0]['pred_labels'][i].item()
+                    pred_score = pred_dicts[0]['pred_scores'][i].item()
+                    # pred_cls_score = pred_dicts[0]['pred_cls_scores'][i].item()
+                    # pred_iou_score = pred_dicts[0]['pred_iou_scores'][i].item()
+
+                    # Format the output line
+                    # line = f"{pred_label} {x_center:.4f} {y_center:.4f} {z_center:.4f} {x_size:.4f} {y_size:.4f} {z_size:.4f} {yaw:.4f} {pred_score:.4f} {pred_cls_score:.4f} {pred_iou_score:.4f}"
+                    line = f"{pred_label} {x_center:.4f} {y_center:.4f} {z_center:.4f} {x_size:.4f} {y_size:.4f} {z_size:.4f} {yaw:.4f} {pred_score:.4f}"
                     f.write(line + "\n")
+
+            # Postprocess the bounding boxes
+            bb_postprocess(output_file, output_file, mean_value=0, add_amount=4.4)
+
             """
             V.draw_scenes(
                 points=data_dict['points'][:, 1:], ref_boxes=pred_dicts[0]['pred_boxes'],

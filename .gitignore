@@ -2,7 +2,7 @@
 **build**
 **egg-info**
 **dist**
-data/
+data/*.npy
 *.pyc
 venv/
 *.idea/
@@ -12,3 +12,5 @@ venv/
 *.bin
 output
 version.py
+pretrained/
+checkpoints/

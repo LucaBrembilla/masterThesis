@@ -9,37 +9,47 @@ from pcdet.config import cfg, cfg_from_yaml_file
 from pcdet.datasets import DatasetTemplate
 from pcdet.models import build_network, load_data_to_gpu
 from pcdet.utils import common_utils
+import warnings
+warnings.filterwarnings("ignore", category=UserWarning, module="torch")
 
-class DemoDataset(DatasetTemplate):
-    def __init__(self, dataset_cfg, class_names, training=True, root_path=None, logger=None, ext='.bin'):
+import json
+
+def pc_preprocess(pointcloud):
+    
+    if pointcloud.shape[1] < 4:
+        raise ValueError("Pointcloud data must have at least 4 dimensions (x, y, z, intensity).")
+
+    # Set intensity to 0
+    pointcloud[:, 3] = 0
+
+    sub = 4.4
+    pointcloud[:, 2] -= sub 
+    pointcloud[:, 2] = -pointcloud[:, 2]
+
+    return pointcloud
+
+class SinglePointCloudDataset(DatasetTemplate):
+    def __init__(self, dataset_cfg, class_names, training=True, logger=None, pointcloud=None):
         """
         Args:
-            root_path:
-            dataset_cfg:
-            class_names:
-            training:
-            logger:
+            dataset_cfg: Configuration for the dataset.
+            class_names: List of class names.
+            training: Boolean indicating if the dataset is for training.
+            logger: Logger instance.
+            pointcloud: A single point cloud as a numpy array.
         """
         super().__init__(
-            dataset_cfg=dataset_cfg, class_names=class_names, training=training, root_path=root_path, logger=logger
+            dataset_cfg=dataset_cfg, class_names=class_names, training=training, root_path=None, logger=logger
         )
-        self.root_path = root_path
-        self.ext = ext
-        data_file_list = glob.glob(str(root_path / f'*{self.ext}')) if self.root_path.is_dir() else [self.root_path]
-
-        data_file_list.sort()
-        self.sample_file_list = data_file_list
+        self.pointcloud = pointcloud
 
     def __len__(self):
-        return len(self.sample_file_list)
+        return 1  # Single sample
 
     def __getitem__(self, index):
-        if self.ext == '.bin':
-            points = np.fromfile(self.sample_file_list[index], dtype=np.float32).reshape(-1, 4)
-        elif self.ext == '.npy':
-            points = np.load(self.sample_file_list[index])
-        else:
-            raise NotImplementedError
+        assert self.pointcloud is not None, "Point cloud data is not provided."
+
+        points = pc_preprocess(points)
 
         input_dict = {
             'points': points,
@@ -49,14 +59,12 @@ class DemoDataset(DatasetTemplate):
         data_dict = self.prepare_data(data_dict=input_dict)
         return data_dict
 
-
 def process_predictions(pred_dict):
     pred_boxes = pred_dict['pred_boxes'].cpu().numpy()  # Convert to CPU and numpy array
     pred_scores = pred_dict['pred_scores'].cpu().numpy()
     pred_labels = pred_dict['pred_labels'].cpu().numpy()
     
     return pred_boxes, pred_scores, pred_labels
-
 
 def save_predictions_as_ros_markers(pred_boxes, idx):
     """
@@ -99,7 +107,6 @@ def save_predictions_as_ros_markers(pred_boxes, idx):
     # Return the MarkerArray
     return marker_array
 
-
 def parse_config():
     parser = argparse.ArgumentParser(description='arg parser')
     parser.add_argument('--cfg_file', type=str, default='cfgs/kitti_models/second.yaml',
@@ -115,16 +122,43 @@ def parse_config():
 
     return args, cfg
 
+def process_point_cloud(CFG_FILE, CKPT, pointcloud, model):
+    cfg = {}
+    cfg_from_yaml_file(CFG_FILE, cfg)
+    
+    logger = common_utils.create_logger()
+    
+    demo_dataset = SinglePointCloudDataset(
+        dataset_cfg=cfg.DATA_CONFIG, class_names=cfg.CLASS_NAMES, training=False, logger=logger, pointcloud=single_pointcloud
+    )
+    
+    model = build_network(model_cfg=cfg.MODEL, num_class=len(cfg.CLASS_NAMES), dataset=demo_dataset)
+    model.load_params_from_file(filename=CKPT, logger=logger, to_cpu=True)
+    model.cuda()
+    model.eval()
+    
+    with torch.no_grad():
+        for data_dict in demo_dataset:
+            data_dict = demo_dataset.collate_batch([data_dict])
+            load_data_to_gpu(data_dict)
+            pred_dicts, _ = model.forward(data_dict)
+
+            pred_dicts_serializable = {
+                "pred_boxes": pred_dicts[0]['pred_boxes'].tolist(),
+                "pred_scores": pred_dicts[0]['pred_scores'].tolist(),
+                "pred_labels": pred_dicts[0]['pred_labels'].tolist()
+            }
+            
+            return pred_dicts_serializable
 
 def main():
     args, cfg = parse_config()
     logger = common_utils.create_logger()
-    logger.info('-----------------Quick Demo of OpenPCDet-------------------------')
-    demo_dataset = DemoDataset(
-        dataset_cfg=cfg.DATA_CONFIG, class_names=cfg.CLASS_NAMES, training=False,
-        root_path=Path(args.data_path), ext=args.ext, logger=logger
+    single_pointcloud = np.random.rand(10000, 4).astype(np.float32)  # Replace with actual point cloud
+
+    demo_dataset = SinglePointCloudDataset(
+        dataset_cfg=cfg.DATA_CONFIG, class_names=cfg.CLASS_NAMES, training=False, logger=logger, pointcloud=single_pointcloud
     )
-    logger.info(f'Total number of samples: \t{len(demo_dataset)}')
 
     model = build_network(model_cfg=cfg.MODEL, num_class=len(cfg.CLASS_NAMES), dataset=demo_dataset)
     model.load_params_from_file(filename=args.ckpt, logger=logger, to_cpu=True)
@@ -136,24 +170,20 @@ def main():
             data_dict = demo_dataset.collate_batch([data_dict])
             load_data_to_gpu(data_dict)
             pred_dicts, _ = model.forward(data_dict)
-            output_bag_file = f"predictions_{idx+1:05d}.bag"
 
-            # Save predictions to bag
-            with rosbag.Bag(output_bag_file, 'w') as bag:
-                for idx, pred_dict in enumerate(pred_dicts):
-                    """
-                    print(f"Saving predictions for frame {idx}")
-                    print("Predictions:")
-                    print(pred_dict)
-                    """
-                    pred_boxes, pred_scores, pred_labels = process_predictions(pred_dict)
-                    markers = save_predictions_as_ros_markers(pred_boxes, idx)
-                    bag.write('/predictions', markers)
+            pred_dicts_serializable = {
+                "pred_boxes": pred_dicts[0]['pred_boxes'].tolist(),
+                "pred_scores": pred_dicts[0]['pred_scores'].tolist(),
+                "pred_labels": pred_dicts[0]['pred_labels'].tolist()
+            }
 
-            print(f"Predictions saved to {output_bag_file}")
+            # Print as JSON
+            print(json.dumps(pred_dicts_serializable))
 
-    logger.info('Demo done.')
-
+            # Format of the results:
+            # pred_label x_center y_center z_center x_size y_size z_size yaw pred_score pred_cls_score pred_iou_scores
+            # Labels: 1 - Car/Vehicle, 2 - Pedestrian, 3 - Cyclist
+            
 
 if __name__ == "__main__":
     main()

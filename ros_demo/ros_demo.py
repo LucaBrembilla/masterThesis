@@ -5,20 +5,13 @@ import torch
 from visualization_msgs.msg import Marker, MarkerArray
 import rosbag
 
-from pcdet.config import cfg
+from pcdet.config import cfg, cfg_from_yaml_file
 from pcdet.datasets import DatasetTemplate
 from pcdet.models import build_network, load_data_to_gpu
 from pcdet.utils import common_utils
-import warnings
-warnings.filterwarnings("ignore", category=UserWarning, module="torch")
 
 import json
 import yaml
-
-def cfg_from_yaml_file(filename):
-    with open(filename, 'r') as f:
-        config = yaml.safe_load(f)
-    return config
 
 def pc_preprocess(pointcloud):
     
@@ -35,7 +28,7 @@ def pc_preprocess(pointcloud):
     return pointcloud
 
 class SinglePointCloudDataset(DatasetTemplate):
-    def __init__(self, dataset_cfg, class_names, training=True, logger=None, pointcloud=None):
+    def __init__(self, dataset_cfg, class_names, training=True, logger=None, root_path=None, pointcloud=None):
         """
         Args:
             dataset_cfg: Configuration for the dataset.
@@ -55,7 +48,7 @@ class SinglePointCloudDataset(DatasetTemplate):
     def __getitem__(self, index):
         assert self.pointcloud is not None, "Point cloud data is not provided."
 
-        points = pc_preprocess(points)
+        points = pc_preprocess(self.pointcloud)
 
         input_dict = {
             'points': points,
@@ -65,15 +58,30 @@ class SinglePointCloudDataset(DatasetTemplate):
         data_dict = self.prepare_data(data_dict=input_dict)
         return data_dict
 
-def process_point_cloud(CFG_FILE, CKPT, pointcloud):
-    cfg = cfg_from_yaml_file(CFG_FILE)
+def parse_config():
+    parser = argparse.ArgumentParser(description='arg parser')
+    parser.add_argument('--cfg_file', type=str, default='/home/brembilla/exp/tools/cfgs/kitti_models/pv_rcnn_ros.yaml',
+                        help='specify the config for demo')
+    parser.add_argument('--data_path', type=str, default='/home/brembilla/exp/shared_datasets/PNRR/ouster/example',
+                        help='specify the point cloud data file or directory')
+    parser.add_argument('--ckpt', type=str, default=None, help='/home/brembilla/exp/pretrained/pv_rcnn_8369.pth')
 
-    print("Config:\n", cfg)
+    args = parser.parse_args()
+
+    cfg_from_yaml_file(args.cfg_file, cfg)
+
+    return args, cfg
+
+
+def process_point_cloud(CFG_FILE, CKPT, pointcloud):
+    args, cfg = parse_config()
     
     logger = common_utils.create_logger()
     
     demo_dataset = SinglePointCloudDataset(
-        dataset_cfg=cfg['DATA_CONFIG'], class_names=cfg['CLASS_NAMES'], training=False, logger=logger, pointcloud=pointcloud
+        dataset_cfg=cfg.DATA_CONFIG, class_names=cfg.CLASS_NAMES, training=False,
+        root_path=Path(args.data_path), logger=logger,
+        pointcloud=pointcloud
     )
     
     model = build_network(model_cfg=cfg.MODEL, num_class=len(cfg.CLASS_NAMES), dataset=demo_dataset)

@@ -90,10 +90,9 @@ def pointcloud_callback(msg):
         result = process_point_cloud(CFG_FILE, CKPT, pointcloud)
 
         rospy.loginfo("Inference completed successfully.")
-        rospy.loginfo(f"Output: {result}")
+        # rospy.loginfo(f"Output: {result}")
 
-        predictions = json.loads(result)
-        parse_and_publish(predictions)
+        parse_and_publish(result)
 
     except Exception as e:
         rospy.logerr(f"Error processing point cloud: {e}. Command output: {e.stderr}")

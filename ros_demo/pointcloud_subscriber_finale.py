@@ -171,11 +171,16 @@ def pointcloud_callback(msg):
     """Callback to process incoming point clouds."""
     try:
         # Convert PointCloud2 to numpy array
+        rospy.loginfo(f"Received point cloud. Time: {rospy.Time.now()}")
+
         pointcloud = np.array(list(pc2.read_points(msg, skip_nans=True, field_names=["x", "y", "z", "intensity"])))
-        rospy.loginfo(f"Received point cloud with {pointcloud.shape[0]} points.")
+        # rospy.loginfo(f"Received point cloud with {pointcloud.shape[0]} points.")
+        rospy.loginfo(f"Converted point cloud to numpy array. Time: {rospy.Time.now()}")
+
 
         # Preprocess point cloud
         points = pc_preprocess(pointcloud)
+        rospy.loginfo(f"Preprocessed point cloud. Time: {rospy.Time.now()}")
 
         # Perform inference
         global model
@@ -183,8 +188,11 @@ def pointcloud_callback(msg):
         with torch.no_grad():
             data_dict = demo_dataset.process_point_cloud(points)
             data_dict = demo_dataset.collate_batch([data_dict])
+            rospy.loginfo(f"Process for inference. Time: {rospy.Time.now()}")
             load_data_to_gpu(data_dict)
+            rospy.loginfo(f"Loaded to GPU. Time: {rospy.Time.now()}")
             pred_dicts, _ = model.forward(data_dict)
+            rospy.loginfo(f"Performed inference. Time: {rospy.Time.now()}")
 
         # Prepare predictions for publishing
         pred_dicts_serializable = {
@@ -192,7 +200,9 @@ def pointcloud_callback(msg):
             "pred_scores": pred_dicts[0]['pred_scores'].tolist(),
             "pred_labels": pred_dicts[0]['pred_labels'].tolist()
         }
+        rospy.loginfo(f"Prepared predictions for publishing. Time: {rospy.Time.now()}")
         parse_and_publish(pred_dicts_serializable)
+        rospy.loginfo(f"Published bounding boxes. Time: {rospy.Time.now()}")
 
     except Exception as e:
         rospy.logerr(f"Error processing point cloud: {e}")
@@ -203,7 +213,6 @@ def main():
     global demo_dataset 
     rospy.init_node('pointcloud_subscriber', anonymous=True)
     bbox_publisher = rospy.Publisher('/ouster/bounding_boxes', MarkerArray, queue_size=10)
-    rospy.Subscriber('/ouster/points', PointCloud2, pointcloud_callback)
 
     args, cfg = parse_config()
 
@@ -216,6 +225,8 @@ def main():
 
     # Load the model once
     load_model()
+
+    rospy.Subscriber('/ouster/points', PointCloud2, pointcloud_callback, queue_size=1)
 
     rospy.loginfo("PointCloud2 Subscriber Node Initialized.")
     rospy.spin()

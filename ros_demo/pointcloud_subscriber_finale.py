@@ -19,7 +19,7 @@ import glob
 
 # Paths to your OpenPCDet configuration and model checkpoint
 # CFG_FILE = '/home/brembilla/exp/tools/cfgs/kitti_models/pv_rcnn_ros.yaml'
-CKPT = '/home/brembilla/exp/pretrained/pv_rcnn_8369.pth'
+CKPT = '/home/brembilla/exp/pretrained/pointpillar_7728.pth'
 
 # Global model instance
 model = None
@@ -75,11 +75,11 @@ class DemoDataset(DatasetTemplate):
 
 def parse_config():
     parser = argparse.ArgumentParser(description='arg parser')
-    parser.add_argument('--cfg_file', type=str, default='/home/brembilla/exp/tools/cfgs/kitti_models/pv_rcnn_ros.yaml',
+    parser.add_argument('--cfg_file', type=str, default='/home/brembilla/exp/tools/cfgs/kitti_models/pointpillar_ros.yaml',
                         help='specify the config for demo')
     parser.add_argument('--data_path', type=str, default='/home/brembilla/exp/shared_datasets/PNRR/ouster/example',
                         help='specify the point cloud data file or directory')
-    parser.add_argument('--ckpt', type=str, default=None, help='/home/brembilla/exp/pretrained/pv_rcnn_8369.pth')
+    parser.add_argument('--ckpt', type=str, default=None, help='/home/brembilla/exp/pretrained/pointpillar_7728.pth')
 
     args = parser.parse_args()
 
@@ -223,6 +223,7 @@ def main():
 
 if __name__ == '__main__':
     try:
+        torch.cuda.empty_cache()
         main()
     except rospy.ROSInterruptException:
         pass

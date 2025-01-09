@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import rospy
+import ros_numpy
 from sensor_msgs.msg import PointCloud2
 import sensor_msgs.point_cloud2 as pc2
 from visualization_msgs.msg import Marker, MarkerArray
@@ -98,20 +99,6 @@ def load_model():
     model.cuda()
     model.eval()
 
-def pc_preprocess(pointcloud):
-    
-    if pointcloud.shape[1] < 4:
-        raise ValueError("Pointcloud data must have at least 4 dimensions (x, y, z, intensity).")
-
-    # Set intensity to 0
-    pointcloud[:, 3] = 0
-
-    sub = 4.4
-    pointcloud[:, 2] -= sub 
-    pointcloud[:, 2] = -pointcloud[:, 2]
-
-    return pointcloud
-
 def parse_and_publish(predictions):
     """Publish bounding box predictions as ROS markers."""
     marker_array = MarkerArray()
@@ -164,35 +151,54 @@ def parse_and_publish(predictions):
         marker_array.markers.append(marker)
 
     bbox_publisher.publish(marker_array)
-    rospy.loginfo(f"Published {len(marker_array.markers)} bounding boxes.")
+    """ rospy.loginfo(f"Published {len(marker_array.markers)} bounding boxes.") """
 
 
 def pointcloud_callback(msg):
     """Callback to process incoming point clouds."""
     try:
-        # Convert PointCloud2 to numpy array
-        rospy.loginfo(f"Received point cloud. Time: {rospy.Time.now()}")
+        """ rospy.loginfo(f"Received point cloud. Time: {rospy.Time.now().secs}.{rospy.Time.now().nsecs}") """
 
-        pointcloud = np.array(list(pc2.read_points(msg, skip_nans=True, field_names=["x", "y", "z", "intensity"])))
-        # rospy.loginfo(f"Received point cloud with {pointcloud.shape[0]} points.")
-        rospy.loginfo(f"Converted point cloud to numpy array. Time: {rospy.Time.now()}")
+        pointcloud_readonly = ros_numpy.point_cloud2.pointcloud2_to_array(msg)
+        """ rospy.loginfo(f"Converted to read_only. Time: {rospy.Time.now().secs}.{rospy.Time.now().nsecs}") """
+
+        # Flatten each field to 1D arrays and stack them into a 2D array
+        x = pointcloud_readonly['x'].flatten()
+        y = pointcloud_readonly['y'].flatten()
+        z = -( pointcloud_readonly['z'].flatten()-4.4 )
+        intensity = np.zeros_like(x)
+
+        pointcloud = np.vstack((x, y, z, intensity)).T
+        """ rospy.loginfo(f"Pointcloud reshaped to: {pointcloud.shape}") """
+
+        # Filter out rows containing NaNs
+        valid_points = ~np.isnan(pointcloud).any(axis=1)
+        pointcloud = pointcloud[valid_points]
+        """ rospy.loginfo(f"Filtered NaNs from point cloud. Remaining points: {pointcloud.shape[0]}") """
+
+        
+        """ rospy.loginfo(f"Converted point cloud to numpy array. Time: {rospy.Time.now().secs}.{rospy.Time.now().nsecs}") """
 
 
         # Preprocess point cloud
-        points = pc_preprocess(pointcloud)
-        rospy.loginfo(f"Preprocessed point cloud. Time: {rospy.Time.now()}")
+        # points = pc_preprocess(pointcloud)
+        """ rospy.loginfo(f"Preprocessed point cloud. Time: {rospy.Time.now().secs}.{rospy.Time.now().nsecs}")
+        rospy.loginfo(f"Preprocessed point cloud shape: {pointcloud.shape}")
+        rospy.loginfo(f"Sample points after preprocessing: {pointcloud[:5]}") """
+
 
         # Perform inference
         global model
         global demo_dataset
         with torch.no_grad():
-            data_dict = demo_dataset.process_point_cloud(points)
+            data_dict = demo_dataset.process_point_cloud(pointcloud)
             data_dict = demo_dataset.collate_batch([data_dict])
-            rospy.loginfo(f"Process for inference. Time: {rospy.Time.now()}")
+            """ rospy.loginfo(f"Process for inference. Time: {rospy.Time.now().secs}.{rospy.Time.now().nsecs}") """
             load_data_to_gpu(data_dict)
-            rospy.loginfo(f"Loaded to GPU. Time: {rospy.Time.now()}")
+            """ rospy.loginfo(f"Loaded to GPU. Time: {rospy.Time.now().secs}.{rospy.Time.now().nsecs}") """
             pred_dicts, _ = model.forward(data_dict)
-            rospy.loginfo(f"Performed inference. Time: {rospy.Time.now()}")
+            """ rospy.loginfo(f"Performed inference. Time: {rospy.Time.now().secs}.{rospy.Time.now().nsecs}")
+            rospy.loginfo(f"Predictions: {pred_dicts}") """
 
         # Prepare predictions for publishing
         pred_dicts_serializable = {
@@ -200,9 +206,9 @@ def pointcloud_callback(msg):
             "pred_scores": pred_dicts[0]['pred_scores'].tolist(),
             "pred_labels": pred_dicts[0]['pred_labels'].tolist()
         }
-        rospy.loginfo(f"Prepared predictions for publishing. Time: {rospy.Time.now()}")
+        """ rospy.loginfo(f"Prepared predictions for publishing. Time: {rospy.Time.now().secs}.{rospy.Time.now().nsecs}") """
         parse_and_publish(pred_dicts_serializable)
-        rospy.loginfo(f"Published bounding boxes. Time: {rospy.Time.now()}")
+        """ rospy.loginfo(f"Published bounding boxes. Time: {rospy.Time.now().secs}.{rospy.Time.now().nsecs}") """
 
     except Exception as e:
         rospy.logerr(f"Error processing point cloud: {e}")
@@ -226,7 +232,7 @@ def main():
     # Load the model once
     load_model()
 
-    rospy.Subscriber('/ouster/points', PointCloud2, pointcloud_callback, queue_size=1)
+    rospy.Subscriber('/ouster/points', PointCloud2, pointcloud_callback, queue_size=3)
 
     rospy.loginfo("PointCloud2 Subscriber Node Initialized.")
     rospy.spin()

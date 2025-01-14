@@ -105,11 +105,12 @@ def parse_and_publish(predictions):
 
     for i, box in enumerate(predictions['pred_boxes']):
         x_center, y_center, z_center, x_size, y_size, z_size, yaw = box
+        z_center = -z_center + 4.4
         pred_label = predictions['pred_labels'][i]
         pred_score = predictions['pred_scores'][i]
 
         marker = Marker()
-        marker.header.frame_id = "base_link"
+        marker.header.frame_id = "os_sensor"
         marker.header.stamp = rospy.Time.now()
         marker.ns = "bounding_boxes"
         marker.id = i

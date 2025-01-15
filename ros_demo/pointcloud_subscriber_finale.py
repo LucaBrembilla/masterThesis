@@ -99,7 +99,7 @@ def load_model():
     model.cuda()
     model.eval()
 
-def parse_and_publish(predictions):
+def parse_and_publish(predictions, msg_stamp):
     """Publish bounding box predictions as ROS markers."""
     marker_array = MarkerArray()
 
@@ -111,7 +111,7 @@ def parse_and_publish(predictions):
 
         marker = Marker()
         marker.header.frame_id = "os_sensor"
-        marker.header.stamp = rospy.Time.now()
+        marker.header.stamp = msg_stamp
         marker.ns = "bounding_boxes"
         marker.id = i
         marker.type = Marker.CUBE
@@ -208,7 +208,7 @@ def pointcloud_callback(msg):
             "pred_labels": pred_dicts[0]['pred_labels'].tolist()
         }
         """ rospy.loginfo(f"Prepared predictions for publishing. Time: {rospy.Time.now().secs}.{rospy.Time.now().nsecs}") """
-        parse_and_publish(pred_dicts_serializable)
+        parse_and_publish(pred_dicts_serializable, msg.header.stamp)
         """ rospy.loginfo(f"Published bounding boxes. Time: {rospy.Time.now().secs}.{rospy.Time.now().nsecs}") """
 
     except Exception as e:

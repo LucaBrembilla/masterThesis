@@ -26,6 +26,7 @@ POINT_CLOUD_DATA=/home/brembilla/exp/data/zeroed_frame_0250.npy
 POINT_CLOUD_DATA=/home/brembilla/exp/data/zeroed_frame_0000.npy
 POINT_CLOUD_DATA=/home/brembilla/exp/shared_datasets/PNRR/ouster/frame_0000.npy
 POINT_CLOUD_DATA=/home/brembilla/exp/shared_datasets/PNRR/ouster/example
+POINT_CLOUD_DATA=/media/airlab/000F9736000EFC5E/PNRR/ouster/frame_0001.npy
 
 # POINT_CLOUD_DATA=/home/brembilla/exp/shared_datasets/PNRR/ouster/frame_2121.npy
 # cd ..

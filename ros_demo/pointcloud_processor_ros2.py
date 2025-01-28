@@ -102,10 +102,11 @@ class PointCloudInference(Node):
 
     def pointcloud_callback(self, msg):
         try:
-            pointcloud = ros2_numpy.point_cloud2.pointcloud2_to_array(msg)
-            x = pointcloud['x'].flatten()
-            y = pointcloud['y'].flatten()
-            z = -(pointcloud['z'].flatten() - 4.4)
+            pointcloud = ros2_numpy.point_cloud2.point_cloud2_to_array(msg)
+            print(pointcloud)
+            x = pointcloud['xyz'][:, 0].flatten()
+            y = pointcloud['xyz'][:, 1].flatten()
+            z = -(pointcloud['xyz'][:, 2].flatten() - 4.4)
             intensity = np.zeros_like(x)
 
             pointcloud_np = np.vstack((x, y, z, intensity)).T

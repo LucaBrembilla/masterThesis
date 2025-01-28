@@ -17,7 +17,7 @@ CKPT=/home/brembilla/exp/pretrained/second_7862.pth
 CKPT=/home/brembilla/exp/pretrained/voxel_rcnn_car_84.54.pth
 CKPT=/home/brembilla/exp/pretrained/second_iou7909.pth
 CKPT=/home/brembilla/exp/pretrained/pv_rcnn_8369.pth
-
+CKPT=/home/airlab/brembilla/masterThesis/pretrained/pv_rcnn_8369.pth
 
 
 POINT_CLOUD_DATA=/home/brembilla/exp/shared_datasets/kitti/kitti/testing/velodyne/000001.bin

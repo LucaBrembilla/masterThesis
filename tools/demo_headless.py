@@ -167,8 +167,17 @@ def main():
     with torch.no_grad():
         for idx, data_dict in enumerate(demo_dataset):
             logger.info(f'Visualized sample index: \t{idx + 1}')
+            print(f'data dicts: {data_dict}')
+
             data_dict = demo_dataset.collate_batch([data_dict])
+
+            print(f'data dicts after collate batch: {data_dict}')
+
+
             load_data_to_gpu(data_dict)
+
+            print(f'data dicts loaded to gpu: {data_dict}')
+
             pred_dicts, _ = model.forward(data_dict)
 
             print(f"pred_dicts: {pred_dicts}")
@@ -176,6 +185,8 @@ def main():
             # Save the predictions to a file
             # output_file = Path("/home/brembilla/exp/output/pnrr") / (Path(args.data_path).stem + str(idx) +".txt")
             output_file = Path(f"/home/brembilla/exp/output/pnrr/pvrccpp/{idx:04d}.txt")
+            output_file = Path(f"/home/airlab/brembilla/masterThesis/data/pnrr/ros2/{idx:04d}.txt")
+
             output_file.parent.mkdir(parents=True, exist_ok=True)
 
             # Format of the results:

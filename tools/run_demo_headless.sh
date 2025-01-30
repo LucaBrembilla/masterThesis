@@ -9,6 +9,7 @@ CGF_FILE=/home/brembilla/exp/tools/cfgs/kitti_models/voxel_rcnn_car.yaml
 CGF_FILE=/home/brembilla/exp/tools/cfgs/kitti_models/second_iou.yaml
 CGF_FILE=cfgs/kitti_models/pv_rcnn.yaml
 CFG_FILE=/home/airlab/brembilla/masterThesis/tools/cfgs/kitti_models/second_iou_ros2.yaml
+CFG_FILE=/home/airlab/brembilla/masterThesis/tools/cfgs/nuscenes_models/cbgs_dyn_pp_centerpoint_ros2.yaml
 
 
 
@@ -21,6 +22,7 @@ CKPT=/home/brembilla/exp/pretrained/second_iou7909.pth
 CKPT=/home/brembilla/exp/pretrained/pv_rcnn_8369.pth
 CKPT=/home/airlab/brembilla/masterThesis/pretrained/pv_rcnn_8369.pth
 CKPT=/home/airlab/brembilla/masterThesis/pretrained/second_iou7909.pth
+CKPT=/home/airlab/brembilla/masterThesis/pretrained/cbgs_pp_centerpoint_nds6070.pth
 
 
 POINT_CLOUD_DATA=/home/brembilla/exp/shared_datasets/kitti/kitti/testing/velodyne/000001.bin

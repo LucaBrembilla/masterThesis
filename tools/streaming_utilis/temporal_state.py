@@ -1,6 +1,6 @@
 import numpy as np
 
-from match_detections_to_tracks import match_detections_to_tracks
+from tools.streaming_utilis.match_detections_to_tracks import match_detections_to_tracks
 
 
 def update_temporal_state(pred_dicts, tracker=None, motion_model='linear', time_step=0.1):
@@ -15,17 +15,21 @@ def update_temporal_state(pred_dicts, tracker=None, motion_model='linear', time_
         updated_detections: List of detections with motion-corrected boxes
         updated_tracker: Updated tracking state
     """
-    current_boxes = [pred['pred_boxes'] for pred in pred_dicts]  # (N, 7) [x,y,z,dx,dy,dz,heading]
-    current_scores = [pred['pred_scores'] for pred in pred_dicts]
+    current_boxes = pred_dicts[0]['pred_boxes']  # (N, 7) [x,y,z,dx,dy,dz,heading]
+    # current_scores = [pred_dicts['pred_scores'].copy()]
+
+    print(f"current_boxes: {current_boxes}")
     
     if tracker is None:
         # Initialize tracker for first frame
         tracker = {
             'track_ids': np.arange(len(current_boxes)),
-            'track_states': current_boxes,
+            'track_states':np.array([box for box in current_boxes.cpu().numpy()]),
             'motion_model': motion_model,
             'last_timestamp': time_step
         }
+
+        print(f"Tracker:\n{tracker}")
         return current_boxes, tracker
     
     # Motion model implementation

@@ -58,17 +58,25 @@ def eval_one_epoch(cfg, args, model, dataloader, epoch_id, logger, dist_test=Fal
         progress_bar = tqdm.tqdm(total=len(dataloader), leave=True, desc='eval', dynamic_ncols=True)
     start_time = time.time()
 
-    prev_detections = None
+    prev_detections = None # TODO: delete this
     tracker = None
     
     for i, batch_dict in enumerate(dataloader):
-        if not i % 2:  # For frames after the first
+        print(f"Previous detections:\n {prev_detections}")
+        print(f"Current tracker:\n {tracker}")
+        print(f"Frame {i}. Numbers of points: {(batch_dict['points']).shape[0]}")
+        if i % 2:  # For odd frames
             # Crop current frame using previous detections
             batch_dict['points'] = crop_point_cloud(
                 batch_dict['points'], 
-                prev_detections,
+                tracker['track_states'],
                 expand_ratio=1.2
-            )    
+            )
+
+            print(f"Cropping, new #points: {len(batch_dict['points'])}")
+
+
+                
     
         load_data_to_gpu(batch_dict)
 
@@ -80,7 +88,7 @@ def eval_one_epoch(cfg, args, model, dataloader, epoch_id, logger, dist_test=Fal
 
         # Update tracking 
         prev_detections, tracker = update_temporal_state(
-            pred_dicts, 
+            pred_dicts, # TODO: add a confidence treshold, for instance 0.5 for auto and .2 for others
             tracker,
             # motion_model=cfg.MOTION_MODEL  # Add to config
         )

@@ -61,8 +61,8 @@ def update_temporal_state(pred_dicts, tracker=None, motion_model='linear', time_
     
     # Data association (simple IoU matching)
     matched_pairs = match_detections_to_tracks(
-        current_boxes, 
-        predicted_boxes,
+        tracker['track_states'], 
+        np.array(predicted_boxes),
         iou_threshold=0.3
     )
     

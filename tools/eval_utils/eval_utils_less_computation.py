@@ -69,10 +69,10 @@ def eval_one_epoch(cfg, args, model, dataloader, epoch_id, logger, dist_test=Fal
             # Crop current frame using previous detections
             batch_dict['points'] = crop_point_cloud(
                 batch_dict['points'], 
-                tracker['track_states'],
+                np.array([track['box'] for track in tracker['track_states']]),
                 expand_ratio=1.2
             )
-
+            
             print(f"Cropping, new #points: {len(batch_dict['points'])}")
 
 
@@ -88,7 +88,7 @@ def eval_one_epoch(cfg, args, model, dataloader, epoch_id, logger, dist_test=Fal
 
         # Update tracking 
         prev_detections, tracker = update_temporal_state(
-            pred_dicts, # TODO: add a confidence treshold, for instance 0.5 for auto and .2 for others
+            pred_dicts, # TODO: add a confidence treshold, for instance 0.5 for auto and .2 for others (maybe not because pred dicts is already cut)
             tracker,
             # motion_model=cfg.MOTION_MODEL  # Add to config
         )

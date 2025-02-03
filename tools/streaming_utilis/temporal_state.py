@@ -1,7 +1,7 @@
 import numpy as np
+import torch
 
 from tools.streaming_utilis.match_detections_to_tracks import match_detections_to_tracks
-
 
 def update_temporal_state(pred_dicts, tracker=None, motion_model='linear', time_step=0.1):
     """
@@ -15,92 +15,109 @@ def update_temporal_state(pred_dicts, tracker=None, motion_model='linear', time_
         updated_detections: List of detections with motion-corrected boxes
         updated_tracker: Updated tracking state
     """
-    current_boxes = pred_dicts[0]['pred_boxes']  # (N, 7) [x,y,z,dx,dy,dz,heading]
-    # current_scores = [pred_dicts['pred_scores'].copy()]
-
-    print(f"current_boxes: {current_boxes}")
+    current_boxes = pred_dicts[0]['pred_boxes']  # (N, 7) tensor [x,y,z,dx,dy,dz,heading]
+    current_boxes_np = current_boxes.cpu().numpy()
     
     if tracker is None:
         # Initialize tracker for first frame
         tracker = {
-            'track_ids': np.arange(len(current_boxes)),
-            'track_states':np.array([box for box in current_boxes.cpu().numpy()]),
+            'track_ids': np.arange(len(current_boxes_np)).tolist(),
+            'track_states': [{'box': box, 'velocity': None} for box in current_boxes_np],
             'motion_model': motion_model,
             'last_timestamp': time_step
         }
-
-        print(f"Tracker:\n{tracker}")
         return current_boxes, tracker
     
-    # Motion model implementation
+    # Predict next positions using motion model
     predicted_boxes = []
     for track in tracker['track_states']:
+        current_box = track['box']
+        velocity = track.get('velocity', None)
+        
         if motion_model == 'linear':
-            # Simple linear extrapolation (x = x0 + v*Δt)
-            # Assume velocity is estimated from previous frames
-            if 'velocity' not in track:
-                predicted = track  # First frame, no motion
+            if velocity is not None:
+                predicted_box = current_box.copy()
+                predicted_box[:3] += velocity * time_step
             else:
-                predicted = track.copy()
-                predicted[:3] += track['velocity'] * time_step
-                
+                predicted_box = current_box.copy()
         elif motion_model == 'constant_velocity':
-            # Classic constant velocity model
-            predicted = track.copy()
-            predicted[:3] += track.get('velocity', [0,0,0]) * time_step
-            # Add noise/uncertainty growth
-            # TODO
-            
+            # Assume constant velocity, initialize with zeros if not present
+            vel = track.get('velocity', np.zeros(3))
+            predicted_box = current_box.copy()
+            predicted_box[:3] += vel * time_step
         elif motion_model == 'kalman':
-            # Kalman filter prediction step
-            # (Would need full Kalman implementation)
-            # TODO
-            predicted = track['kf'].predict()
-            
-        predicted_boxes.append(predicted)
+            # Placeholder for Kalman filter prediction
+            predicted_box = current_box.copy()
+        else:
+            predicted_box = current_box.copy()
+        
+        predicted_boxes.append(predicted_box)
     
-    # Data association (simple IoU matching)
+    print("Current boxes: ", current_boxes_np)
+    print("Predicted boxes from state: ", np.array(predicted_boxes))
+
+    # Data association between predicted_boxes and current detections
     matched_pairs = match_detections_to_tracks(
-        tracker['track_states'], 
-        np.array(predicted_boxes),
+        current_boxes=current_boxes_np,
+        predicted_boxes=np.array(predicted_boxes),
         iou_threshold=0.3
     )
     
-    # Update tracker state
+    print("Matched pairs: ", matched_pairs)
+
+    # Update tracks and handle new detections
     updated_tracks = []
-    new_id = tracker['track_ids'][-1] + 1 if len(tracker['track_ids']) > 0 else 0
+    matched_track_indices = set()
+    matched_det_indices = set()
+    
+    # Generate new track IDs
+    new_id = max(tracker['track_ids']) + 1 if tracker['track_ids'] else 0
     
     for det_idx, track_idx in matched_pairs:
-        # Update existing track
+        prev_track = tracker['track_states'][track_idx]
+        current_box = current_boxes_np[det_idx]
+        
+        # Calculate velocity
+        if prev_track['box'] is not None:
+            velocity = (current_box[:3] - prev_track['box'][:3]) / time_step
+        else:
+            velocity = np.zeros(3)
+        
         updated_track = {
-            'box': current_boxes[det_idx],
-            'velocity': (current_boxes[det_idx][:3] - tracker['track_states'][track_idx][:3]) / time_step,
-            'timestamp': time_step,
+            'box': current_box,
+            'velocity': velocity,
             'track_id': tracker['track_ids'][track_idx]
         }
+        # Placeholder for Kalman update
         if motion_model == 'kalman':
-            updated_track['kf'].update(current_boxes[det_idx])
-            
-        updated_tracks.append(updated_track)
-    
-    # Handle new detections
-    unmatched_detections = set(range(len(current_boxes))) - {p[0] for p in matched_pairs}
-    for det_idx in unmatched_detections:
-        updated_tracks.append({
-            'box': current_boxes[det_idx],
-            # 'velocity': np.zeros(3),  # Unknown initial velocity
-            'timestamp': time_step,
-            'track_id': new_id
-        })
-        new_id += 1
+            pass
         
-    # Format output
-    updated_detections = [track['box'] for track in updated_tracks]
+        updated_tracks.append(updated_track)
+        matched_track_indices.add(track_idx)
+        matched_det_indices.add(det_idx)
     
-    return updated_detections, {
-        'track_ids': [t['track_id'] for t in updated_tracks],
+    # Handle unmatched detections (new tracks)
+    unmatched_det_indices = set(range(len(current_boxes_np))) - matched_det_indices
+    for det_idx in unmatched_det_indices:
+        current_box = current_boxes_np[det_idx]
+        updated_track = {
+            'box': current_box,
+            'velocity': None,
+            'track_id': new_id
+        }
+        updated_tracks.append(updated_track)
+        new_id += 1
+    
+    # Convert updated tracks to tensor
+    updated_detections_np = np.array([track['box'] for track in updated_tracks])
+    updated_detections = torch.tensor(updated_detections_np, device=current_boxes.device, dtype=current_boxes.dtype)
+    
+    # Prepare updated tracker
+    updated_tracker = {
+        'track_ids': [track['track_id'] for track in updated_tracks],
         'track_states': updated_tracks,
         'motion_model': motion_model,
         'last_timestamp': time_step
     }
-
+    
+    return updated_detections, updated_tracker

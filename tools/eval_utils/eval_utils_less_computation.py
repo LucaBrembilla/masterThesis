@@ -67,7 +67,7 @@ def eval_one_epoch(cfg, args, model, dataloader, epoch_id, logger, dist_test=Fal
         #print(f"Previous detections:\n {prev_detections}")
         #print(f"Current tracker:\n {tracker}")
         #print(f"Frame {i}. Numbers of points: {(batch_dict['points']).shape[0]}")
-        if i % 3:  # For odd frames
+        if i % 10:  # For odd frames
             # Crop current frame using previous detections
             batch_dict['points'] = crop_point_cloud(
                 batch_dict['points'], 

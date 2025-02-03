@@ -154,4 +154,4 @@ if __name__ == '__main__':
     ], dtype=np.float32)
     
     matches = match_detections_to_tracks(current_boxes, predicted_boxes, iou_threshold=0.1)
-    print("Matched pairs:", matches)
+    #print("Matched pairs:", matches)

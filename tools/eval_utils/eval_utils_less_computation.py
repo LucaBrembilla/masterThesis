@@ -24,7 +24,9 @@ def statistics_info(cfg, ret_dict, metric, disp_dict):
 def eval_one_epoch(cfg, args, model, dataloader, epoch_id, logger, dist_test=False, result_dir=None):
     result_dir.mkdir(parents=True, exist_ok=True)
 
-    final_output_dir = result_dir / 'final_result' / 'data'
+    timestamp = time.strftime("%Y%m%d_%H%M%S", time.localtime())
+
+    final_output_dir = result_dir / 'final_result' / timestamp / 'data'
     if args.save_to_file:
         final_output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -62,10 +64,10 @@ def eval_one_epoch(cfg, args, model, dataloader, epoch_id, logger, dist_test=Fal
     tracker = None
     
     for i, batch_dict in enumerate(dataloader):
-        print(f"Previous detections:\n {prev_detections}")
-        print(f"Current tracker:\n {tracker}")
-        print(f"Frame {i}. Numbers of points: {(batch_dict['points']).shape[0]}")
-        if i % 2:  # For odd frames
+        #print(f"Previous detections:\n {prev_detections}")
+        #print(f"Current tracker:\n {tracker}")
+        #print(f"Frame {i}. Numbers of points: {(batch_dict['points']).shape[0]}")
+        if i % 3:  # For odd frames
             # Crop current frame using previous detections
             batch_dict['points'] = crop_point_cloud(
                 batch_dict['points'], 
@@ -73,7 +75,7 @@ def eval_one_epoch(cfg, args, model, dataloader, epoch_id, logger, dist_test=Fal
                 expand_ratio=1.2
             )
             
-            print(f"Cropping, new #points: {len(batch_dict['points'])}")
+            print(f"Cropping for frame {i}, new #points: {len(batch_dict['points'])}")
 
 
                 

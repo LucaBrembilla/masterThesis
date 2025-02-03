@@ -57,8 +57,8 @@ def update_temporal_state(pred_dicts, tracker=None, motion_model='linear', time_
         
         predicted_boxes.append(predicted_box)
     
-    print("Current boxes: ", current_boxes_np)
-    print("Predicted boxes from state: ", np.array(predicted_boxes))
+    #print("Current boxes: ", current_boxes_np)
+    #print("Predicted boxes from state: ", np.array(predicted_boxes))
 
     # Data association between predicted_boxes and current detections
     matched_pairs = match_detections_to_tracks(
@@ -67,7 +67,7 @@ def update_temporal_state(pred_dicts, tracker=None, motion_model='linear', time_
         iou_threshold=0.3
     )
     
-    print("Matched pairs: ", matched_pairs)
+    #print("Matched pairs: ", matched_pairs)
 
     # Update tracks and handle new detections
     updated_tracks = []

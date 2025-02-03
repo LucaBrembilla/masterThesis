@@ -23,7 +23,7 @@ def crop_point_cloud(pointcloud, boxes, expand_ratio = 1.2):
     
     for box in boxes:
         # Unpack box parameters
-        bx, by, bz, dx, dy, dz, heading = box
+        bx, by, bz, dx, dy, dz, heading = box[:7]
         cos_theta = math.cos(heading)
         sin_theta = math.sin(heading)
         

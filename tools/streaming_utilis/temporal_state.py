@@ -17,12 +17,16 @@ def update_temporal_state(pred_dicts, tracker=None, motion_model='linear', time_
     """
     current_boxes = pred_dicts[0]['pred_boxes']  # (N, 7) tensor [x,y,z,dx,dy,dz,heading]
     current_boxes_np = current_boxes.cpu().numpy()
+
+    # Limit to 7 columns (x, y, z, dx, dy, dz, heading). For nuScenes
+    if current_boxes_np[0].shape[0] > 7:
+        current_boxes_np = current_boxes_np[:, :7]
     
     if tracker is None:
         # Initialize tracker for first frame
         tracker = {
             'track_ids': np.arange(len(current_boxes_np)).tolist(),
-            'track_states': [{'box': box, 'velocity': None} for box in current_boxes_np],
+            'track_states': [{'box': box[:7], 'velocity': None} for box in current_boxes_np],
             'motion_model': motion_model,
             'last_timestamp': time_step
         }

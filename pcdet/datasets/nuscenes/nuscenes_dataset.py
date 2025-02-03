@@ -15,7 +15,6 @@ from PIL import Image
 class NuScenesDataset(DatasetTemplate):
     def __init__(self, dataset_cfg, class_names, training=True, root_path=None, logger=None):
         root_path = (root_path if root_path is not None else Path(dataset_cfg.DATA_PATH)) / dataset_cfg.VERSION
-        print(root_path)
         super().__init__(
             dataset_cfg=dataset_cfg, class_names=class_names, training=training, root_path=root_path, logger=logger
         )
@@ -362,8 +361,6 @@ def create_nuscenes_info(version, data_path, save_path, max_sweeps=10, with_cam=
     from . import nuscenes_utils
     data_path = data_path / version
     save_path = save_path / version
-    print("Data path", data_path)
-    print("Save path", save_path)
 
     assert version in ['v1.0-trainval', 'v1.0-test', 'v1.0-mini']
     if version == 'v1.0-trainval':

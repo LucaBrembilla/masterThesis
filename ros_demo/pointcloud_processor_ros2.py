@@ -15,7 +15,7 @@ from pcdet.utils import common_utils
 import glob
 
 # Configuration and paths
-CFG_FILE = '/home/airlab/brembilla/masterThesis/tools/cfgs/kitti_models/pointpillar_ros.yaml'
+CFG_FILE = '/home/airlab/brembilla/masterThesis/tools/cfgs/kitti_models/pointpillar_ros2.yaml'
 CFG_FILE = '/home/airlab/brembilla/masterThesis/tools/cfgs/kitti_models/pointrcnn_ros2.yaml'
 CFG_FILE = '/home/airlab/brembilla/masterThesis/tools/cfgs/kitti_models/second_iou_ros2.yaml'
 CFG_FILE = '/home/airlab/brembilla/masterThesis/tools/cfgs/kitti_models/pv_rcnn_ros2.yaml'
@@ -112,7 +112,7 @@ class PointCloudInference(Node):
         self.demo_dataset = self.init_dataset()
         self.model = self.load_model()
 
-        print("Ready for inference")
+        print("Ready for inference without state. Using CFG ", CFG_FILE, " and CKPT ", CKPT)
 
     def init_dataset(self):
         cfg_from_yaml_file(CFG_FILE, cfg)

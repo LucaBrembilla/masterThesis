@@ -18,17 +18,17 @@ from .streaming_utilis.crop import crop_point_cloud
 import glob
 
 # Configuration and paths
-CFG_FILE = '/home/airlab/brembilla/masterThesis/tools/cfgs/kitti_models/pointpillar_ros.yaml'
-CFG_FILE = '/home/airlab/brembilla/masterThesis/tools/cfgs/kitti_models/pointrcnn_ros2.yaml'
+CFG_FILE = '/home/airlab/brembilla/masterThesis/tools/cfgs/kitti_models/pointpillar_ros2.yaml'
 CFG_FILE = '/home/airlab/brembilla/masterThesis/tools/cfgs/kitti_models/second_iou_ros2.yaml'
 CFG_FILE = '/home/airlab/brembilla/masterThesis/tools/cfgs/kitti_models/pv_rcnn_ros2.yaml'
+CFG_FILE = '/home/airlab/brembilla/masterThesis/tools/cfgs/kitti_models/pointrcnn_ros2.yaml'
 CFG_FILE = '/home/airlab/brembilla/masterThesis/tools/cfgs/kitti_models/second_ros2.yaml'
 
 
 CKPT = '/home/airlab/brembilla/masterThesis/pretrained/pointpillar_7728.pth'
-CKPT = '/home/airlab/brembilla/masterThesis/pretrained/pointrcnn_7870.pth'
 CKPT = '/home/airlab/brembilla/masterThesis/pretrained/second_iou7909.pth'
 CKPT= '/home/airlab/brembilla/masterThesis/pretrained/pv_rcnn_8369.pth'
+CKPT = '/home/airlab/brembilla/masterThesis/pretrained/pointrcnn_7870.pth'
 CKPT = '/home/airlab/brembilla/masterThesis/pretrained/second_7862.pth'
 
 
@@ -119,7 +119,7 @@ class PointCloudInference(Node):
         self.prev_detections = None # TODO: delete this
         self.tracker = None
 
-        # print("Ready for inference")
+        print("Ready for inference with stateful model. Using CFG ", CFG_FILE, " and CKPT ", CKPT)
 
     def init_dataset(self):
         cfg_from_yaml_file(CFG_FILE, cfg)
@@ -141,10 +141,10 @@ class PointCloudInference(Node):
 
     def pointcloud_callback(self, msg):
         try:
-            self.get_logger().info(f"Received point cloud.")
+            # self.get_logger().info(f"Received point cloud.")
 
             pointcloud_np = pointcloud2_to_numpy_xyz(msg)
-            self.get_logger().info(f"Frame {self.counter}, points: {len(pointcloud_np)}")
+            # self.get_logger().info(f"Frame {self.counter}, points: {len(pointcloud_np)}")
 
             # Preprocess the z to be similar to Kitty
             pointcloud_np[:, 2] = 4.4 - pointcloud_np[:, 2]
@@ -158,7 +158,7 @@ class PointCloudInference(Node):
                     expand_ratio=1.2
                 )
                 
-                self.get_logger().info(f"Cropping for frame {self.counter}, new #points: {len(pointcloud_np)}")
+                # self.get_logger().info(f"Cropping for frame {self.counter}, new #points: {len(pointcloud_np)}")
 
 
             # Add zero intensity to all the points
@@ -179,14 +179,14 @@ class PointCloudInference(Node):
 
             self.publish_predictions(pred_dicts_serializable, msg.header.stamp)
 
-            self.get_logger().info("Published predictions")
+            # self.get_logger().info("Published predictions")
             # Update tracking 
             self.prev_detections, self.tracker = update_temporal_state(
                 pred_dicts, 
                 self.tracker,
             )
 
-            self.get_logger().info("State updated")
+            # self.get_logger().info("State updated")
 
 
             # Update pointcloud counter

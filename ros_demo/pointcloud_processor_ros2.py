@@ -18,15 +18,15 @@ import glob
 CFG_FILE = '/home/airlab/brembilla/masterThesis/tools/cfgs/kitti_models/pointpillar_ros.yaml'
 CFG_FILE = '/home/airlab/brembilla/masterThesis/tools/cfgs/kitti_models/pointrcnn_ros2.yaml'
 CFG_FILE = '/home/airlab/brembilla/masterThesis/tools/cfgs/kitti_models/second_iou_ros2.yaml'
+CFG_FILE = '/home/airlab/brembilla/masterThesis/tools/cfgs/kitti_models/pv_rcnn_ros2.yaml'
 CFG_FILE = '/home/airlab/brembilla/masterThesis/tools/cfgs/kitti_models/second_ros2.yaml'
-CGF_FILE = '/home/airlab/brembilla/masterThesis/tools/cfgs/kitti_models/pv_rcnn_ros2.yaml'
 
 
 CKPT = '/home/airlab/brembilla/masterThesis/pretrained/pointpillar_7728.pth'
 CKPT = '/home/airlab/brembilla/masterThesis/pretrained/pointrcnn_7870.pth'
 CKPT = '/home/airlab/brembilla/masterThesis/pretrained/second_iou7909.pth'
+CKPT = '/home/airlab/brembilla/masterThesis/pretrained/pv_rcnn_8369.pth'
 CKPT = '/home/airlab/brembilla/masterThesis/pretrained/second_7862.pth'
-CKPT= '/home/airlab/brembilla/masterThesis/pretrained/pv_rcnn_8369.pth'
 
 
 def pointcloud2_to_numpy_xyz(msg):
@@ -178,6 +178,7 @@ class PointCloudInference(Node):
 
             # Skip all with the same principle but lower treshold
             score_tresh = 0.30
+            score_tresh = 0.0 # For PVRCNN
             if predictions['pred_scores'][i] < score_tresh:
                 continue
 

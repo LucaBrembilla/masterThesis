@@ -19,7 +19,7 @@ CFG_FILE = '/home/airlab/brembilla/masterThesis/tools/cfgs/kitti_models/pointpil
 CFG_FILE = '/home/airlab/brembilla/masterThesis/tools/cfgs/kitti_models/pointrcnn_ros2.yaml'
 CFG_FILE = '/home/airlab/brembilla/masterThesis/tools/cfgs/kitti_models/second_iou_ros2.yaml'
 CFG_FILE = '/home/airlab/brembilla/masterThesis/tools/cfgs/kitti_models/second_ros2.yaml'
-CGF_FILE = '/home/airlab/brembilla/masterThesis/tools/cfgs/kitti_models/pv_rcnn_ros2.yaml'
+CFG_FILE = '/home/airlab/brembilla/masterThesis/tools/cfgs/kitti_models/pv_rcnn_ros2.yaml'
 
 
 CKPT = '/home/airlab/brembilla/masterThesis/pretrained/pointpillar_7728.pth'

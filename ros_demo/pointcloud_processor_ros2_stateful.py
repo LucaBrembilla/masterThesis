@@ -116,8 +116,8 @@ class PointCloudInference(Node):
         self.model = self.load_model()
         self.counter = 0
         # print("Counter: ", self.counter)
-        self.prev_detections = None # TODO: delete this
         self.tracker = None
+        self.tracker.cuda()
 
         print("Ready for inference with stateful model. Using CFG ", CFG_FILE, " and CKPT ", CKPT)
 
@@ -149,25 +149,51 @@ class PointCloudInference(Node):
             # Preprocess the z to be similar to Kitty
             pointcloud_np[:, 2] = 4.4 - pointcloud_np[:, 2]
 
-
-            if self.counter > 10 and self.counter % 10:  
-                # Crop current frame using previous detections
-                pointcloud_np = crop_point_cloud(
-                    pointcloud_np, 
-                    np.array([track['box'] for track in self.tracker['track_states']]),
-                    expand_ratio=1.2
-                )
-                
-                # self.get_logger().info(f"Cropping for frame {self.counter}, new #points: {len(pointcloud_np)}")
-
-
             # Add zero intensity to all the points
             pointcloud_np = np.hstack([pointcloud_np, np.zeros((pointcloud_np.shape[0], 1))])
 
+            data_dict = self.demo_dataset.process_point_cloud(pointcloud_np)
+            data_dict = self.demo_dataset.collate_batch([data_dict])
+            load_data_to_gpu(data_dict)
+
+            if self.counter > 10 and self.counter % 10:  
+                expand_ratio = 1.2
+                # Extract XYZ coordinates
+                xyz = data_dict['points'][:, 1:4]  # Shape: (N, 3)
+
+                # Extract box components
+                bx, by, bz, dx, dy, dz, heading = boxes[:, 0], boxes[:, 1], boxes[:, 2], boxes[:, 3], boxes[:, 4], boxes[:, 5], boxes[:, 6]
+                
+                # Expand box dimensions
+                dx, dy, dz = dx * expand_ratio, dy * expand_ratio, dz * expand_ratio
+
+                # Translate points to the box center
+                x_rel = xyz[:, 0].unsqueeze(1) - bx.unsqueeze(0)  # Shape: (N, M)
+                y_rel = xyz[:, 1].unsqueeze(1) - by.unsqueeze(0)
+                z_rel = xyz[:, 2].unsqueeze(1) - bz.unsqueeze(0)
+
+                # Compute rotation matrices (around Z-axis)
+                cos_theta = torch.cos(heading)
+                sin_theta = torch.sin(heading)
+
+                # Rotate points into the local coordinate frame of each box
+                x_rot = x_rel * cos_theta.unsqueeze(0) + y_rel * sin_theta.unsqueeze(0)
+                y_rot = -x_rel * sin_theta.unsqueeze(0) + y_rel * cos_theta.unsqueeze(0)
+
+                # Check which points are inside the boxes
+                in_x = (x_rot.abs() <= (dx / 2).unsqueeze(0))
+                in_y = (y_rot.abs() <= (dy / 2).unsqueeze(0))
+                in_z = (z_rel.abs() <= (dz / 2).unsqueeze(0))
+
+                # Combine conditions: A point is valid if it is inside *any* box
+                inside_any_box = (in_x & in_y & in_z).any(dim=1)
+
+                # Filter points
+                data_dict['points'] = batch_dict['points'][inside_any_box]
+                
+                # self.get_logger().info(f"Cropping for frame {self.counter}, new #points: {len(pointcloud_np)}")
+
             with torch.no_grad():
-                data_dict = self.demo_dataset.process_point_cloud(pointcloud_np)
-                data_dict = self.demo_dataset.collate_batch([data_dict])
-                load_data_to_gpu(data_dict)
                 pred_dicts, _ = self.model.forward(data_dict)
             
             # Prepare predictions for publishing
@@ -181,7 +207,7 @@ class PointCloudInference(Node):
 
             # self.get_logger().info("Published predictions")
             # Update tracking 
-            self.prev_detections, self.tracker = update_temporal_state(
+            self.tracker = update_temporal_state(
                 pred_dicts, 
                 self.tracker,
             )

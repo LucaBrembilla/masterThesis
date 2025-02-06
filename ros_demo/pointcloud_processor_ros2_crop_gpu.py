@@ -116,8 +116,8 @@ class PointCloudInference(Node):
         self.model = self.load_model()
         self.counter = 0
         # print("Counter: ", self.counter)
+        self.prev_detections = None
         self.tracker = None
-        self.tracker.cuda()
 
         print("Ready for inference with stateful model. Using CFG ", CFG_FILE, " and CKPT ", CKPT)
 
@@ -149,22 +149,27 @@ class PointCloudInference(Node):
             # Preprocess the z to be similar to Kitty
             pointcloud_np[:, 2] = 4.4 - pointcloud_np[:, 2]
 
-            # Add zero intensity to all the points
-            pointcloud_np = np.hstack([pointcloud_np, np.zeros((pointcloud_np.shape[0], 1))])
 
-            data_dict = self.demo_dataset.process_point_cloud(pointcloud_np)
-            data_dict = self.demo_dataset.collate_batch([data_dict])
-            load_data_to_gpu(data_dict)
-
-            print(data_dict)
+            pointcloud_tensor = torch.from_numpy(pointcloud_np).cuda()
 
             if self.counter > 10 and self.counter % 10:  
                 expand_ratio = 1.2
                 # Extract XYZ coordinates
-                xyz = data_dict['points'][:, 1:4]  # Shape: (N, 3)
+                xyz = pointcloud_tensor[:, 0:3]  # Shape: (N, 3)
+
+                # self.get_logger().info(f"Cropping pointcloud: {xyz} ")
+
+                # Extract the 'box' from each track state and convert them to numpy arrays.
+                boxes_np = np.stack([track['box'] for track in self.tracker['track_states']])
+                # self.get_logger().info(f"Numpy boxes: {boxes_np}")
+
+                # Convert the stacked numpy array to a torch tensor and move it to the GPU.
+                boxes = torch.from_numpy(boxes_np).cuda()
 
                 # Extract box components
                 bx, by, bz, dx, dy, dz, heading = boxes[:, 0], boxes[:, 1], boxes[:, 2], boxes[:, 3], boxes[:, 4], boxes[:, 5], boxes[:, 6]
+
+                # self.get_logger().info(f"bx {bx}")
                 
                 # Expand box dimensions
                 dx, dy, dz = dx * expand_ratio, dy * expand_ratio, dz * expand_ratio
@@ -191,12 +196,23 @@ class PointCloudInference(Node):
                 inside_any_box = (in_x & in_y & in_z).any(dim=1)
 
                 # Filter points
-                data_dict['points'] = batch_dict['points'][inside_any_box]
+                pointcloud_tensor = pointcloud_tensor[inside_any_box]
                 
-                # self.get_logger().info(f"Cropping for frame {self.counter}, new #points: {len(pointcloud_np)}")
+                # self.get_logger().info(f"Cropping for frame {self.counter}, new #points: {pointcloud_tensor.size()}")
+
+            pointcloud_np = pointcloud_tensor.cpu().numpy()
+            # self.get_logger().info(f"Cropped for frame {self.counter}, new #points: {len(pointcloud_np)}")
+            # Add zero intensity to all the points
+            pointcloud_np = np.hstack([pointcloud_np, np.zeros((pointcloud_np.shape[0], 1))])
 
             with torch.no_grad():
+                data_dict = self.demo_dataset.process_point_cloud(pointcloud_np)
+                data_dict = self.demo_dataset.collate_batch([data_dict])
+                load_data_to_gpu(data_dict)
+                # self.get_logger().info(f"Forwarding the model")
                 pred_dicts, _ = self.model.forward(data_dict)
+
+            # self.get_logger().info(f"Predictions: {pred_dicts}")
             
             # Prepare predictions for publishing
             pred_dicts_serializable = {
@@ -207,14 +223,17 @@ class PointCloudInference(Node):
 
             self.publish_predictions(pred_dicts_serializable, msg.header.stamp)
 
-            # self.get_logger().info("Published predictions")
+            # self.get_logger().info(f"Published predictions")
+            
             # Update tracking 
-            self.tracker = update_temporal_state(
+            self.prev_detections, self.tracker = update_temporal_state(
                 pred_dicts, 
                 self.tracker,
             )
 
-            # self.get_logger().info("State updated")
+            # self.get_logger().info(f"Tracker: {self.tracker}")
+
+            # self.get_logger().info(f"State updated")
 
 
             # Update pointcloud counter
@@ -222,7 +241,6 @@ class PointCloudInference(Node):
 
 
         except Exception as e:
-            print(f"error:{e}")
             self.get_logger().error(f"Error processing point cloud: {e}")
 
     def publish_predictions(self, predictions, timestamp):

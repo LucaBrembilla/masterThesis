@@ -67,20 +67,29 @@ def eval_one_epoch(cfg, args, model, dataloader, epoch_id, logger, dist_test=Fal
         #print(f"Previous detections:\n {prev_detections}")
         #print(f"Current tracker:\n {tracker}")
         #print(f"Frame {i}. Numbers of points: {(batch_dict['points']).shape[0]}")
-        if i % 10:  # For odd frames
+
+        # print(f"Frame {i}. Batch dict: {batch_dict}")
+        if i > 2 and i % 10:  # For odd frames
             # Crop current frame using previous detections
-            batch_dict['points'] = crop_point_cloud(
+            points = crop_point_cloud(
                 batch_dict['points'], 
                 np.array([track['box'] for track in tracker['track_states']]),
                 expand_ratio=1.2
             )
+
+            # print(f"Points: {points}, # points: {len(points)}")
             
-            print(f"Cropping for frame {i}, new #points: {len(batch_dict['points'])}")
+            data_dict = dataset.process_pointcloud(points = points, frame_id = i)
+            batch_dict = data_dict
+            batch_dict['batch_size'] =  1
 
-
-                
+            # print(f"Cropping for frame {i}, batch dict: {batch_dict}")
+            print(f"Cropping for frame {i}, new #points: {len(batch_dict['points'])}")                
     
         load_data_to_gpu(batch_dict)
+        print(f"Frame {i}, batch dict: {batch_dict}")
+        print(f"Frame {i}, new #voxels: {batch_dict['voxels'].size()}")
+        print(f"Frame {i}, new #voxel_coords: {batch_dict['voxel_coords'].size()}")
 
         if getattr(args, 'infer_time', False):
             start_time = time.time()

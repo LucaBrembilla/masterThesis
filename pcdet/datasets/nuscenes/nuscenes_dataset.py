@@ -254,6 +254,19 @@ class NuScenesDataset(DatasetTemplate):
 
         return data_dict
 
+    """
+    Custom function for cropping the pointclouds. 
+    """
+    def process_pointcloud(self, points, frame_id):
+        input_dict = {
+            'points': points,
+            'frame_id': frame_id,
+            'metadata': {'token': "myToken"}
+        }
+        data_dict = self.prepare_data(data_dict=input_dict)
+
+        return data_dict
+
     def evaluation(self, det_annos, class_names, **kwargs):
         import json
         from nuscenes.nuscenes import NuScenes

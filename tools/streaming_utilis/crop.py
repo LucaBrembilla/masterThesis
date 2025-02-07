@@ -44,7 +44,7 @@ def crop_point_cloud(pointcloud, boxes, expand_ratio = 1.2):
         # Update global mask with OR operation
         mask |= in_x & in_y & in_z
     
-    return pointcloud[mask]
+    return pointcloud[mask][:, 1:6]
 
 if __name__ == "__main__":
     # Example usage

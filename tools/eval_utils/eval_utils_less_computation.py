@@ -11,6 +11,56 @@ from pcdet.utils import common_utils
 from tools.streaming_utilis.temporal_state import update_temporal_state
 from tools.streaming_utilis.crop import crop_point_cloud
 
+from nuscenes.nuscenes import NuScenes
+from nuscenes.utils.geometry_utils import transform_matrix
+from pyquaternion import Quaternion 
+import math
+
+def quaternion_yaw(q):
+    """
+    Extracts yaw (rotation around z-axis) from a quaternion.
+    Assumes q is a list/array in the format [w, x, y, z].
+    """
+    quat = Quaternion(q)
+    # Returns (yaw, pitch, roll) in radians.
+    yaw, _, _ = quat.yaw_pitch_roll
+    return yaw
+
+def rotation_matrix_to_yaw(R):
+    """
+    Compute yaw from a 3x3 rotation matrix.
+    Yaw is defined as the angle between the x-axis and the projection of the 
+    rotated x-axis onto the ground plane.
+    """
+    return math.atan2(R[1, 0], R[0, 0])
+
+def get_lidar_pose(nusc, sample_token):
+    # Get sample and LiDAR sample data.
+    sample = nusc.get('sample', sample_token)
+    lidar_data = nusc.get('sample_data', sample['data']['LIDAR_TOP'])
+    
+    # Get ego pose (in the world frame).
+    ego_pose = nusc.get('ego_pose', lidar_data['ego_pose_token'])
+    
+    # Get LiDAR extrinsics (calibration relative to ego).
+    calib = nusc.get('calibrated_sensor', lidar_data['calibrated_sensor_token'])
+    
+    # Convert rotation lists to Quaternion objects.
+    from pyquaternion import Quaternion
+    lidar_quat = Quaternion(calib['rotation'])
+    ego_quat = Quaternion(ego_pose['rotation'])
+    
+    # Compute transformation matrices.
+    lidar_to_ego = transform_matrix(calib['translation'], rotation=lidar_quat)
+    ego_to_world = transform_matrix(ego_pose['translation'], rotation=ego_quat)
+    
+    # Compose to get the LiDAR-to-world transformation matrix.
+    lidar_to_world = ego_to_world @ lidar_to_ego  # 4x4 transformation matrix
+    
+    return lidar_to_world
+
+
+
 def statistics_info(cfg, ret_dict, metric, disp_dict):
     for cur_thresh in cfg.MODEL.POST_PROCESSING.RECALL_THRESH_LIST:
         metric['recall_roi_%s' % str(cur_thresh)] += ret_dict.get('roi_%s' % str(cur_thresh), 0)
@@ -62,8 +112,14 @@ def eval_one_epoch(cfg, args, model, dataloader, epoch_id, logger, dist_test=Fal
 
     prev_detections = None # TODO: delete this
     tracker = None
+
+    nusc = NuScenes(version='v1.0-mini', dataroot='/home/brembilla/exp/private_datasets/nuscenes/v1.0-mini', verbose=True)
     
     for i, batch_dict in enumerate(dataloader):
+        
+        sample_token = batch_dict['metadata'][0]['token']
+        current_pose_mat = get_lidar_pose(nusc, sample_token)
+
         print(f"Frame {i}. Id: {batch_dict['frame_id']}. Metadata: {batch_dict['metadata']}")
         if i == 40:
             print("New sequence")
@@ -97,9 +153,9 @@ def eval_one_epoch(cfg, args, model, dataloader, epoch_id, logger, dist_test=Fal
 
         # Update tracking 
         prev_detections, tracker = update_temporal_state(
-            pred_dicts, # TODO: add a confidence treshold, for instance 0.5 for auto and .2 for others (maybe not because pred dicts is already cut)
+            pred_dicts,
             tracker,
-            # motion_model=cfg.MOTION_MODEL  # Add to config
+            current_pose_mat=current_pose_mat
         )
 
         """ What to add to config:

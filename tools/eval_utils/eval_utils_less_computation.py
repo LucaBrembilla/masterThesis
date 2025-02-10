@@ -65,37 +65,41 @@ def eval_one_epoch(cfg, args, model, dataloader, epoch_id, logger, dist_test=Fal
     
     for i, batch_dict in enumerate(dataloader):
         #print(f"Previous detections:\n {prev_detections}")
-        #print(f"Current tracker:\n {tracker}")
+        print(f"Current tracker:\n {tracker}")
         #print(f"Frame {i}. Numbers of points: {(batch_dict['points']).shape[0]}")
 
         # print(f"Frame {i}. Batch dict: {batch_dict}")
-        if i > 2 and i % 10:  # For odd frames
+        if i % 2:  # For odd frames
             # Crop current frame using previous detections
             points = crop_point_cloud(
                 batch_dict['points'], 
                 np.array([track['box'] for track in tracker['track_states']]),
-                expand_ratio=1.2
+                expand_ratio=1.5
             )
-
-            # print(f"Points: {points}, # points: {len(points)}")
             
             data_dict = dataset.process_pointcloud(points = points, frame_id = i)
+            new_col = np.zeros((data_dict['voxel_coords'].shape[0], 1))
+            data_dict['voxel_coords'] = np.concatenate((new_col, data_dict['voxel_coords']), axis=1)
+            data_dict['metadata'] = batch_dict['metadata']
+            data_dict['frame_id'] = batch_dict['frame_id']
             batch_dict = data_dict
             batch_dict['batch_size'] =  1
 
             # print(f"Cropping for frame {i}, batch dict: {batch_dict}")
-            print(f"Cropping for frame {i}, new #points: {len(batch_dict['points'])}")                
+            print(f"Cropping for frame {i}, new #points: {len(batch_dict['points'])}") 
+             
     
         load_data_to_gpu(batch_dict)
-        print(f"Frame {i}, batch dict: {batch_dict}")
-        print(f"Frame {i}, new #voxels: {batch_dict['voxels'].size()}")
-        print(f"Frame {i}, new #voxel_coords: {batch_dict['voxel_coords'].size()}")
+        #print(f"Frame {i}, new #voxels: {batch_dict['voxels'].size()}")
+        #print(f"Frame {i}, new #voxel_coords: {batch_dict['voxel_coords'].size()}")
 
         if getattr(args, 'infer_time', False):
             start_time = time.time()
 
         with torch.no_grad():
             pred_dicts, ret_dict = model(batch_dict)
+            print(f"pred_dicts: {pred_dicts}")
+            print(f"Boxes predicted: {pred_dicts[0]['pred_boxes'].size()}")
 
         # Update tracking 
         prev_detections, tracker = update_temporal_state(

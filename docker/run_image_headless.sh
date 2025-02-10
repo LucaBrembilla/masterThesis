@@ -10,7 +10,7 @@ CPU_SET=8-11
 IMAGE_NAME=djiajun1206/pcdet
 TAG=pytorch1.6
 
-CONTAINER_NAME=$(whoami)_headless_open3d_$(date +%Y%m%d_%H%M%S)
+CONTAINER_NAME=$(whoami)_pcdet_$(date +%Y%m%d_%H%M%S)
 
 ######################################################################
 ######################################################################

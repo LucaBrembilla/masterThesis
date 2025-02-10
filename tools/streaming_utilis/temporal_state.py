@@ -64,11 +64,9 @@ def update_temporal_state(pred_dicts, tracker=None, motion_model='linear', time_
     matched_pairs = match_detections_to_tracks(
         current_boxes=current_boxes_np,
         predicted_boxes=np.array(predicted_boxes),
-        iou_threshold=0.5
+        iou_threshold=0.1
     )
     
-    #print("Matched pairs: ", matched_pairs)
-
     # Update tracks and handle new detections
     updated_tracks = []
     matched_track_indices = set()

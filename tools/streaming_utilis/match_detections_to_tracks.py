@@ -137,6 +137,8 @@ def match_detections_to_tracks(current_boxes, predicted_boxes, iou_threshold=0.3
     matched_indices = linear_assignment(cost_matrix)
     # Filter matches by IoU threshold
     valid_matches = [(d, t) for d, t in matched_indices if iou_matrix[d, t] > iou_threshold]
+    print(f"valid_matches: {valid_matches}")
+    print(f"# of valid_matches: {len(valid_matches)}")
     return valid_matches
 
 # Example usage:
@@ -154,4 +156,3 @@ if __name__ == '__main__':
     ], dtype=np.float32)
     
     matches = match_detections_to_tracks(current_boxes, predicted_boxes, iou_threshold=0.1)
-    #print("Matched pairs:", matches)

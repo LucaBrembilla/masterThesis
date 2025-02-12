@@ -23,12 +23,18 @@ def update_temporal_state(pred_dicts, tracker=None, motion_model='linear', time_
 
     # Limit to 7 columns (x, y, z, dx, dy, dz, heading). For nuScenes
     if current_boxes_np[0].shape[0] > 7:
+        current_velocities = current_boxes_np[:, 7:9]  # Extract velocities (vx, vy)
         current_boxes_np = current_boxes_np[:, :7]
     
     if tracker is None:
         tracker = {
             'track_ids': np.arange(len(current_boxes_np)).tolist(),
-            'track_states': [{'box': box.copy(), 'velocity': None} for box in current_boxes_np],
+            'track_states': [
+                {
+                    'box': box.copy(),
+                    'velocity': np.array([current_velocities[i][0], current_velocities[i][1], 0])  # Assuming z velocity = 0
+                } for i,box in enumerate(current_boxes_np)
+            ],
             'motion_model': motion_model,
             'last_timestamp': time_step,
             'lidar_pose': current_pose_mat  # Store current LiDAR pose.
@@ -81,7 +87,7 @@ def update_temporal_state(pred_dicts, tracker=None, motion_model='linear', time_
     matched_pairs = match_detections_to_tracks(
         current_boxes=current_boxes_np,
         predicted_boxes=np.array(predicted_boxes),
-        iou_threshold=0.3
+        iou_threshold=0.1
     )
     
     # Update tracks and handle new detections.
@@ -92,13 +98,16 @@ def update_temporal_state(pred_dicts, tracker=None, motion_model='linear', time_
     # Generate new track IDs.
     new_id = max(tracker['track_ids']) + 1 if tracker['track_ids'] else 0
     
+    nCars = 0
     for det_idx, track_idx in matched_pairs:
+        if ( current_boxes_np[det_idx][3]>3 or current_boxes_np[det_idx][4]>3 ):
+            nCars += 1
         prev_track = tracker['track_states'][track_idx]
         current_box = current_boxes_np[det_idx]
         
         # Calculate velocity based on the change in the box center.
         if prev_track['box'] is not None:
-            velocity = (current_box[:3] - prev_track['box'][:3]) / time_step
+            velocity = np.array([current_velocities[det_idx][0], current_velocities[det_idx][1], 0])  # Assuming z velocity = 0
         else:
             velocity = np.zeros(3)
         
@@ -114,6 +123,8 @@ def update_temporal_state(pred_dicts, tracker=None, motion_model='linear', time_
         updated_tracks.append(updated_track)
         matched_track_indices.add(track_idx)
         matched_det_indices.add(det_idx)
+
+    print(f"Number of matched cars: {nCars}")
     
     # Create new tracks for unmatched detections.
     unmatched_det_indices = set(range(len(current_boxes_np))) - matched_det_indices
@@ -121,7 +132,7 @@ def update_temporal_state(pred_dicts, tracker=None, motion_model='linear', time_
         current_box = current_boxes_np[det_idx]
         updated_track = {
             'box': current_box.copy(),
-            'velocity': None,
+            'velocity': np.array([current_velocities[det_idx][0], current_velocities[det_idx][1], 0]),
             'track_id': new_id
         }
         updated_tracks.append(updated_track)

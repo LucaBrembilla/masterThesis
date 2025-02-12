@@ -112,6 +112,8 @@ def eval_one_epoch(cfg, args, model, dataloader, epoch_id, logger, dist_test=Fal
 
     prev_detections = None # TODO: delete this
     tracker = None
+    tot_num_points = 0 # sum of the number of points of all the pointclouds in the batch
+    points_analyzed = 0
 
     nusc = NuScenes(version='v1.0-mini', dataroot='/home/brembilla/exp/private_datasets/nuscenes/v1.0-mini', verbose=True)
     
@@ -120,16 +122,18 @@ def eval_one_epoch(cfg, args, model, dataloader, epoch_id, logger, dist_test=Fal
         sample_token = batch_dict['metadata'][0]['token']
         current_pose_mat = get_lidar_pose(nusc, sample_token)
 
-        print(f"Frame {i}. Id: {batch_dict['frame_id']}. Metadata: {batch_dict['metadata']}")
+        tot_num_points += batch_dict['points'].shape[0]
+
+        print(f"Frame {i}. Id: {batch_dict['frame_id']}. Metadata: {batch_dict['metadata']}. # points {len(batch_dict['points'])}")
         if i == 40:
             print("New sequence")
         
-        if i != 40 and i % 5:  # Frame 40 is a new sequence
+        if i != 40 and i % 2:  # Frame 40 is a new sequence
             # Crop current frame using previous detections
             points = crop_point_cloud(
                 batch_dict['points'], 
                 np.array([track['box'] for track in tracker['track_states']]),
-                expand_ratio=1.5
+                expand_ratio=2
             )
             
             data_dict = dataset.process_pointcloud(points = points, frame_id = i)
@@ -139,8 +143,10 @@ def eval_one_epoch(cfg, args, model, dataloader, epoch_id, logger, dist_test=Fal
             data_dict['frame_id'] = batch_dict['frame_id']
             batch_dict = data_dict
             batch_dict['batch_size'] =  1
+            points_analyzed += len(batch_dict['points'])
             print(f"Cropping for frame {i}, new #points: {len(batch_dict['points'])}") 
-             
+        else:
+            points_analyzed += len(batch_dict['points'])
     
         load_data_to_gpu(batch_dict)
 
@@ -148,7 +154,7 @@ def eval_one_epoch(cfg, args, model, dataloader, epoch_id, logger, dist_test=Fal
             start_time = time.time()
 
         with torch.no_grad():
-            pred_dicts, ret_dict = model(batch_dict)    
+            pred_dicts, ret_dict = model(batch_dict)
             print(f"Number of predicted objects: {len(pred_dicts[0]['pred_boxes'])}")        
 
         # Update tracking 
@@ -232,6 +238,8 @@ def eval_one_epoch(cfg, args, model, dataloader, epoch_id, logger, dist_test=Fal
 
     logger.info(result_str)
     ret_dict.update(result_dict)
+
+    logger.info('Percentage points analyzed: %.2f' % (points_analyzed / tot_num_points * 100))
 
     logger.info('Result is saved to %s' % result_dir)
     logger.info('****************Evaluation done.*****************')

@@ -122,6 +122,8 @@ class DemoDataset(DatasetTemplate):
         else:
             raise NotImplementedError
 
+        if points.shape[1] == 3:
+            points = np.concatenate((points, np.zeros((points.shape[0], 1), dtype=points.dtype)), axis=1)
         print("Modifying the input pointcloud...")
         points = pc_preprocess(points)
 

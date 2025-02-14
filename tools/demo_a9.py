@@ -27,12 +27,12 @@ def pc_preprocess(pointcloud):
     if pointcloud.shape[1] < 4:
         raise ValueError("Pointcloud data must have at least 4 dimensions (x, y, z, intensity).")
     
-    print(f"Original mean intensity: {np.mean(pointcloud[:, 3])}")
+    # print(f"Original mean intensity: {np.mean(pointcloud[:, 3])}")
 
     # Set intensity to 0
     pointcloud[:, 3] = 0
 
-    print(f"New mean intensity: {np.mean(pointcloud[:, 3])}")
+    # print(f"New mean intensity: {np.mean(pointcloud[:, 3])}")
 
     """
     print(f"Original mean z: {np.mean(pointcloud[:, 2])}")
@@ -45,12 +45,10 @@ def pc_preprocess(pointcloud):
     pointcloud[:, 2] = pointcloud[:, 2] - np.mean(pointcloud[:, 2])
     """
 
-    print(f"Original mean z: {np.mean(pointcloud[:, 2])}")
-    sub = 4.4
+    # print(f"Original mean z: {np.mean(pointcloud[:, 2])}")
+    sub =- 5.5
     pointcloud[:, 2] -= sub
-    print(f"Substracted {sub}, new mean z: {np.mean(pointcloud[:, 2])}")
-    pointcloud[:, 2] = -pointcloud[:, 2]
-    print(f"Inverted mean z: {np.mean(pointcloud[:, 2])}")
+    # print(f"Substracted {sub}, new mean z: {np.mean(pointcloud[:, 2])}")
     return pointcloud
 
 def bb_postprocess(input_file, output_file, mean_value=0, add_amount=4.4):
@@ -76,7 +74,7 @@ def bb_postprocess(input_file, output_file, mean_value=0, add_amount=4.4):
             # Split the line into numbers
             numbers = line.split()
             # Process the third number (index 2)
-            numbers[3] = str(-(float(numbers[3]) + mean_value) + add_amount)
+            numbers[3] = str((float(numbers[3]) + mean_value) + add_amount)
             # Convert back to a space-separated string
             processed_line = " ".join(numbers)
             processed_lines.append(processed_line)
@@ -124,12 +122,22 @@ class DemoDataset(DatasetTemplate):
 
         if points.shape[1] == 3:
             points = np.concatenate((points, np.zeros((points.shape[0], 1), dtype=points.dtype)), axis=1)
-        print("Modifying the input pointcloud...")
+        # print("Modifying the input pointcloud...")
         points = pc_preprocess(points)
 
+        # print("Point min:", np.min(points, axis=0))
+        # print("Point max:", np.max(points, axis=0))
+        # print("Point mean:", np.mean(points, axis=0))
+
+        # print("Sample list 0:", self.sample_file_list[index])
+        try:
+            frame_id = self.sample_file_list[index].split('/')[-1].split('.')[0]
+        except:
+            frame_id = self.sample_file_list[index].parts[-1].split('.')[0]
+        # print(f"Frame ID: {frame_id}")
         input_dict = {
             'points': points,
-            'frame_id': index,
+            'frame_id': frame_id,
         }
 
         data_dict = self.prepare_data(data_dict=input_dict)
@@ -169,26 +177,28 @@ def main():
     with torch.no_grad():
         for idx, data_dict in enumerate(demo_dataset):
             logger.info(f'Visualized sample index: \t{idx + 1}')
-            print(f'data dicts: {data_dict}')
+            # print(f'data dicts: {data_dict}')
+
+            file_name = data_dict['frame_id']
 
             data_dict = demo_dataset.collate_batch([data_dict])
 
-            print(f'data dicts after collate batch: {data_dict}')
+            # print(f'data dicts after collate batch: {data_dict}')
 
 
             load_data_to_gpu(data_dict)
 
-            print(f'data dicts loaded to gpu: {data_dict}')
+            # print(f'data dicts loaded to gpu: {data_dict}')
 
             pred_dicts, _ = model.forward(data_dict)
 
-            print(f"pred_dicts: {pred_dicts}")
+            # print(f"pred_dicts: {pred_dicts}")
 
             # Save the predictions to a file
             # output_file = Path("/home/brembilla/exp/output/pnrr") / (Path(args.data_path).stem + str(idx) +".txt")
             output_file = Path(f"/home/brembilla/exp/output/pnrr/pvrccpp/{idx:04d}.txt")
             output_file = Path(f"/home/airlab/brembilla/masterThesis/data/pnrr/ros2/{idx:04d}.txt")
-            output_file = Path(f"/home/brembilla/exp/output/a9/{idx:04d}.txt")
+            output_file = Path(f"/home/brembilla/exp/private_datasets/providentia/_predictions/{file_name}.txt")
 
             output_file.parent.mkdir(parents=True, exist_ok=True)
 
@@ -201,6 +211,9 @@ def main():
                     x_center, y_center, z_center, x_size, y_size, z_size, yaw = box.tolist()
                     pred_label = pred_dicts[0]['pred_labels'][i].item()
                     pred_score = pred_dicts[0]['pred_scores'][i].item()
+
+                    if pred_score < 0.3:
+                        continue
                     # pred_cls_score = pred_dicts[0]['pred_cls_scores'][i].item()
                     # pred_iou_score = pred_dicts[0]['pred_iou_scores'][i].item()
 
@@ -210,7 +223,7 @@ def main():
                     f.write(line + "\n")
 
             # Postprocess the bounding boxes
-            bb_postprocess(output_file, output_file, mean_value=0, add_amount=4.4)
+            bb_postprocess(output_file, output_file, mean_value=0, add_amount=- 5.5)
 
             """
             V.draw_scenes(

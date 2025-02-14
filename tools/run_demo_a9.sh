@@ -11,7 +11,7 @@ CKPT=/home/brembilla/exp/pretrained/second_iou7909.pth
 
 POINT_CLOUD_DATA=/home/brembilla/exp/private_datasets/providentia/_numpy
 
-python demo_a9.py --cfg_file ${CGF_FILE} \
+python demo_a9_less_computation.py --cfg_file ${CGF_FILE} \
     --ckpt ${CKPT} \
     --data_path ${POINT_CLOUD_DATA} \
     --ext .npy

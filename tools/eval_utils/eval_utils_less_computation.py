@@ -137,13 +137,13 @@ def eval_one_epoch(cfg, args, model, dataloader, epoch_id, logger, dist_test=Fal
         if i == 40:
             print("New sequence")
         
-        if i != 40 and i % 20:  # Frame 40 is a new sequence
+        if i != 40 and i % 10:  # Frame 40 is a new sequence
             # Crop current frame using previous detections
             points = crop_point_cloud(
                 batch_dict['points'], 
                 # np.array([track['box'] for track in tracker['track_states']]),
                 np.array(states),
-                expand_ratio=3
+                expand_ratio=2
             )
             
             data_dict = dataset.process_pointcloud(points = points, frame_id = i)

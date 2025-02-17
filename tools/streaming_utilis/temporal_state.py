@@ -3,7 +3,7 @@ import torch
 
 from tools.streaming_utilis.match_detections_to_tracks import match_detections_to_tracks
 
-def update_temporal_state(pred_dicts, tracker=None, motion_model='linear', time_step=0.1, current_pose_mat=None):
+def update_temporal_state(pred_dicts, tracker=None, motion_model='linear', time_step=0.05, current_pose_mat=None):
     """
     Maintain temporal state using motion model predictions and compensate for sensor ego-motion.
     
@@ -152,3 +152,50 @@ def update_temporal_state(pred_dicts, tracker=None, motion_model='linear', time_
     }
     
     return updated_detections, updated_tracker
+
+def predict_from_state(tracker, current_pose_mat, time_step = 0.05, motion_model='linear'):
+
+    if tracker is None:
+        return None
+    # ---- Compensate for Ego-Motion ----
+    # Get previous LiDAR pose (4x4 matrix) from tracker state.
+    T_prev = tracker['lidar_pose']
+    T_curr = current_pose_mat
+    # Compute the relative transformation:
+    # T_rel maps coordinates from the previous sensor frame into the current sensor frame.
+    T_rel = np.linalg.inv(T_curr) @ T_prev
+
+    # Update each previous track’s box by transforming its center using T_rel.
+    # (Here we assume the box center is stored in the first three elements.)
+    for track in tracker['track_states']:
+        center = track['box'][:3]  # current center in previous sensor frame.
+        center_hom = np.ones(4)
+        center_hom[:3] = center
+        new_center = T_rel @ center_hom  # new center in current sensor frame.
+        track['box'][:3] = new_center[:3]
+    
+    # ---- Predict New Box Positions Using the Motion Model ----
+    predicted_boxes = []
+    for track in tracker['track_states']:
+        current_box = track['box']
+        velocity = track.get('velocity', None)
+        
+        # Simple motion prediction in sensor coordinates.
+        if motion_model == 'linear':
+            if velocity is not None:
+                predicted_box = current_box.copy()
+                predicted_box[:3] += velocity * time_step
+            else:
+                predicted_box = current_box.copy()
+        elif motion_model == 'constant_velocity':
+            vel = track.get('velocity', np.zeros(3))
+            predicted_box = current_box.copy()
+            predicted_box[:3] += vel * time_step
+        elif motion_model == 'kalman':
+            # Placeholder for Kalman filter prediction.
+            predicted_box = current_box.copy()
+        else:
+            predicted_box = current_box.copy()
+        
+        predicted_boxes.append(predicted_box)
+    return predicted_boxes

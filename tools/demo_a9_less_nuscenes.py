@@ -22,23 +22,39 @@ from pcdet.datasets import DatasetTemplate
 from pcdet.models import build_network, load_data_to_gpu
 from pcdet.utils import common_utils
 
-from tools.streaming_utilis_a9.temporal_state_mean_velocity import update_temporal_state, predict_from_state
+from tools.streaming_utilis_a9.temporal_state_nuscenes import update_temporal_state
 from tools.streaming_utilis_a9.crop import crop_point_cloud
 
 def pc_preprocess(pointcloud):
     
     if pointcloud.shape[1] < 4:
         raise ValueError("Pointcloud data must have at least 4 dimensions (x, y, z, intensity).")
+    
+    # print(f"Original mean intensity: {np.mean(pointcloud[:, 3])}")
 
     # Set intensity to 0
     pointcloud[:, 3] = 0
 
+    # print(f"New mean intensity: {np.mean(pointcloud[:, 3])}")
 
+    """
+    print(f"Original mean z: {np.mean(pointcloud[:, 2])}")
+    sub = np.max(pointcloud[:, 2])
+    print(f"Original mean z: {np.mean(pointcloud[:, 2])}")
+    pointcloud[:, 2] -= sub
+    print(f"Substracted {sub}, new mean z: {np.mean(pointcloud[:, 2])}")
+    pointcloud[:, 2] = -pointcloud[:, 2]
+    print(f"Inverted mean z: {np.mean(pointcloud[:, 2])}")
+    pointcloud[:, 2] = pointcloud[:, 2] - np.mean(pointcloud[:, 2])
+    """
+
+    # print(f"Original mean z: {np.mean(pointcloud[:, 2])}")
     sub =- 5.5
     pointcloud[:, 2] -= sub
+    # print(f"Substracted {sub}, new mean z: {np.mean(pointcloud[:, 2])}")
     return pointcloud
 
-def bb_postprocess(input_file, output_file, mean_value=0, add_amount=5.5):
+def bb_postprocess(input_file, output_file, mean_value=0, add_amount=4.4):
     """
     Process the fourth number in each line of the input file by inverting it
     and adding a specified amount, then save the results to the output file.
@@ -109,9 +125,31 @@ class DemoDataset(DatasetTemplate):
 
         if points.shape[1] == 3:
             points = np.concatenate((points, np.zeros((points.shape[0], 1), dtype=points.dtype)), axis=1)
+        # print("Modifying the input pointcloud...")
         points = pc_preprocess(points)
 
         return points
+        
+
+        # print("Point min:", np.min(points, axis=0))
+        # print("Point max:", np.max(points, axis=0))
+        # print("Point mean:", np.mean(points, axis=0))
+
+        # print("Sample list 0:", self.sample_file_list[index])
+        """
+        try:
+            frame_id = self.sample_file_list[index].split('/')[-1].split('.')[0]
+        except:
+            frame_id = self.sample_file_list[index].parts[-1].split('.')[0]
+        # print(f"Frame ID: {frame_id}")
+        input_dict = {
+            'points': points,
+            'frame_id': frame_id,
+        }
+
+        data_dict = self.prepare_data(data_dict=input_dict)
+        return data_dict
+        """
 
 
 def parse_config():
@@ -147,14 +185,11 @@ def main():
     tracker = None
     prev_detections = None
     timestamp_previous = 0
-    total_points_no_cropping = 0
-    total_points_analyzed = 0
-    skips = -1
 
     with torch.no_grad():
         for idx, points in enumerate(demo_dataset):
             logger.info(f'Visualized sample index: \t{idx + 1}')
-            total_points_no_cropping += points.shape[0]
+            # print(f'data dicts: {data_dict}')
             
             try:
                 frame_id = demo_dataset.sample_file_list[idx].split('/')[-1].split('.')[0]
@@ -162,21 +197,11 @@ def main():
                 frame_id = demo_dataset.sample_file_list[idx].parts[-1].split('.')[0]
             
             print(f"Frame ID: {frame_id}")
-
             timestamp_list = str(frame_id).split('_')[:2]
-            timestamp = float(timestamp_list[0]) +  ( float(timestamp_list[1])/1e9 )
+            timestamp = float(timestamp_list[0] + '.' + timestamp_list[1])
             time_step = timestamp - timestamp_previous
 
-            print(f"Time step: {time_step}")
-
-            tracker = predict_from_state(tracker, time_step=time_step)
-
-            print(f"Tracker updated: {tracker}")
-
-            if idx % 3 and time_step > 0.5:
-                skips += 1
-            
-            if idx % 3 and time_step<=0.5:
+            if False and idx % 2 and not time_step>0.3:
                 
                 expand_ratio = 1.5
 
@@ -191,9 +216,8 @@ def main():
                 bx, by, bz, dx, dy, dz, heading = boxes[:, 0], boxes[:, 1], boxes[:, 2], boxes[:, 3], boxes[:, 4], boxes[:, 5], boxes[:, 6]
 
                 # self.get_logger().info(f"bx {bx}")
-                dx += 2
+                dx += 7
                 dy += 2
-                dz += 1
                 # Expand box dimensions
                 dx, dy, dz = dx * expand_ratio, dy * expand_ratio, dz * expand_ratio
 
@@ -223,15 +247,12 @@ def main():
                 
                 # self.get_logger().info(f"Cropping for frame {self.counter}, new #points: {pointcloud_tensor.size()}")
 
-                if pointcloud_tensor.shape[0] <= 50:
-                    skips += 1
-                    continue        
-
                 points = pointcloud_tensor.cpu().numpy()
-                print(f"New points shape: {points.shape}")  
- 
+                print(f"New points shape: {points.shape}")              
 
-            total_points_analyzed += points.shape[0]
+            if points.shape[-1] == 4:
+                points = np.concatenate((points, np.full((points.shape[0], 1), timestamp, dtype=points.dtype)), axis=1)
+
             input_dict = {
                 'points': points,
                 'frame_id': frame_id,
@@ -244,15 +265,17 @@ def main():
             data_dict = demo_dataset.collate_batch([data_dict])
 
             load_data_to_gpu(data_dict)
-            
+
             pred_dicts, _ = model.forward(data_dict)
+            print(f"Prediction: {pred_dicts}")
 
             # Update tracking 
-            prev_detections, tracker = update_temporal_state(
-                pred_dicts = pred_dicts, 
-                tracker = tracker,
-                time_step = time_step
-            )
+            if pred_dicts['pred_boxes'].shape[0] > 0:
+                prev_detections, tracker = update_temporal_state(
+                    pred_dicts, 
+                    tracker,
+                    time_step = timestamp_previous - timestamp
+                )
             timestamp_previous = timestamp
 
             # Save the predictions to a file
@@ -267,13 +290,15 @@ def main():
             with open(output_file, "w") as f:
                 for i, box in enumerate(pred_dicts[0]['pred_boxes']):
                     # Extract individual values
-                    x_center, y_center, z_center, x_size, y_size, z_size, yaw = box.tolist()
+                    x_center, y_center, z_center, x_size, y_size, z_size, yaw, velocity_x, velocity_y = box.tolist()
                     pred_label = pred_dicts[0]['pred_labels'][i].item()
                     pred_score = pred_dicts[0]['pred_scores'][i].item()
 
                     if pred_score < 0.3:
                         continue
-                    
+
+                    if pred_label > 3:
+                        continue
                     # pred_cls_score = pred_dicts[0]['pred_cls_scores'][i].item()
                     # pred_iou_score = pred_dicts[0]['pred_iou_scores'][i].item()
 
@@ -295,8 +320,6 @@ def main():
                 mlab.show(stop=True)
             """
             logger.info(f'Inference done. Results are saved in {output_file}')
-    print(f"Percentage total points analyzed: {total_points_analyzed/total_points_no_cropping*100:.2f}%")
-    print(f"Skips: {skips}")
     logger.info('Demo done.')
 
 

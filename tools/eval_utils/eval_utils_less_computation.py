@@ -8,7 +8,7 @@ import tqdm
 from pcdet.models import load_data_to_gpu
 from pcdet.utils import common_utils
 
-from tools.streaming_utilis.temporal_state import update_temporal_state
+from tools.streaming_utilis.temporal_state import update_temporal_state, predict_from_state
 from tools.streaming_utilis.crop import crop_point_cloud
 
 from nuscenes.nuscenes import NuScenes
@@ -110,10 +110,12 @@ def eval_one_epoch(cfg, args, model, dataloader, epoch_id, logger, dist_test=Fal
         progress_bar = tqdm.tqdm(total=len(dataloader), leave=True, desc='eval', dynamic_ncols=True)
     start_time = time.time()
 
-    prev_detections = None # TODO: delete this
+    prev_detections = None
     tracker = None
     tot_num_points = 0 # sum of the number of points of all the pointclouds in the batch
     points_analyzed = 0
+    current_timestamp = 0
+    previous_timestamp = 0
 
     nusc = NuScenes(version='v1.0-mini', dataroot='/home/brembilla/exp/private_datasets/nuscenes/v1.0-mini', verbose=True)
     
@@ -125,15 +127,23 @@ def eval_one_epoch(cfg, args, model, dataloader, epoch_id, logger, dist_test=Fal
         tot_num_points += batch_dict['points'].shape[0]
 
         print(f"Frame {i}. Id: {batch_dict['frame_id']}. Metadata: {batch_dict['metadata']}. # points {len(batch_dict['points'])}")
+        
+        states = predict_from_state(tracker, current_pose_mat, time_step=0.05)
+        # if states:
+            # print(f"States: {states[:5]}")
+        # timestamp = batch_dict['frame_id'][0].split('__')[-1].spit('.')[0]
+        # print(timestamp)
+
         if i == 40:
             print("New sequence")
         
-        if i != 40 and i % 2:  # Frame 40 is a new sequence
+        if i != 40 and i % 20:  # Frame 40 is a new sequence
             # Crop current frame using previous detections
             points = crop_point_cloud(
                 batch_dict['points'], 
-                np.array([track['box'] for track in tracker['track_states']]),
-                expand_ratio=2
+                # np.array([track['box'] for track in tracker['track_states']]),
+                np.array(states),
+                expand_ratio=3
             )
             
             data_dict = dataset.process_pointcloud(points = points, frame_id = i)
@@ -155,22 +165,18 @@ def eval_one_epoch(cfg, args, model, dataloader, epoch_id, logger, dist_test=Fal
 
         with torch.no_grad():
             pred_dicts, ret_dict = model(batch_dict)
-            print(f"Number of predicted objects: {len(pred_dicts[0]['pred_boxes'])}")        
+            # print(f"Number of predicted objects: {len(pred_dicts[0]['pred_boxes'])}")
+            """print(f"Predicted objects: {pred_dicts[0]['pred_boxes'][:5]}")   
+            print(f"Predicted scores: {pred_dicts[0]['pred_scores'][:5]}")
+            print(f"Predicted classes: {pred_dicts[0]['pred_labels'][:5]}")  """
 
         # Update tracking 
         prev_detections, tracker = update_temporal_state(
             pred_dicts,
             tracker,
+            time_step=0.05,
             current_pose_mat=current_pose_mat
         )
-
-        """ What to add to config:
-        MOTION_MODEL:
-            NAME: 'constant_velocity'  # or 'linear', 'kalman'
-            PROCESS_NOISE: [0.1, 0.1, 0.01]  # x,y,z noise
-            INITIAL_VARIANCE: 1.0
-            MAX_AGE: 3  # Frames to keep stale tracks
-        """
 
         disp_dict = {}
 

@@ -169,16 +169,12 @@ class PointCloudInference(Node):
         for i, box in enumerate(predictions['pred_boxes']):
 
             # Skip if the score for auto is less than score_tresh
-            score_tresh = 0.70
-
-            # diminish for PVRCNN
             score_tresh = 0.50
             if predictions['pred_scores'][i] < score_tresh and predictions['pred_labels'][i] == 1:
                 continue
 
             # Skip all with the same principle but lower treshold
-            score_tresh = 0.30
-            score_tresh = 0.0 # For PVRCNN
+            score_tresh = 0.0 
             if predictions['pred_scores'][i] < score_tresh:
                 continue
 

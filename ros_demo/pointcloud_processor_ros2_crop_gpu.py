@@ -149,10 +149,14 @@ class PointCloudInference(Node):
             # Preprocess the z to be similar to Kitty
             pointcloud_np[:, 2] = 4.4 - pointcloud_np[:, 2]
 
+            # self.get_logger().info(f"Frame {self.counter}, loading to GPU...")
 
             pointcloud_tensor = torch.from_numpy(pointcloud_np).cuda()
 
-            if self.counter > 10 and self.counter % 10:  
+            # self.get_logger().info(f"Frame {self.counter}. Loaded to GPU.")
+
+
+            if self.counter > 3 and self.counter % 10:  
                 expand_ratio = 1.2
                 # Extract XYZ coordinates
                 xyz = pointcloud_tensor[:, 0:3]  # Shape: (N, 3)
@@ -200,7 +204,12 @@ class PointCloudInference(Node):
                 
                 # self.get_logger().info(f"Cropping for frame {self.counter}, new #points: {pointcloud_tensor.size()}")
 
+            # self.get_logger().info(f"Frame {self.counter}. new #points: {pointcloud_tensor.size()}. Loading to CPU...")
+
             pointcloud_np = pointcloud_tensor.cpu().numpy()
+
+            # self.get_logger().info(f"Frame {self.counter}, loaded to CPU.")
+
             # self.get_logger().info(f"Cropped for frame {self.counter}, new #points: {len(pointcloud_np)}")
             # Add zero intensity to all the points
             pointcloud_np = np.hstack([pointcloud_np, np.zeros((pointcloud_np.shape[0], 1))])

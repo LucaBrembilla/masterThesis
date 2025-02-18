@@ -164,7 +164,9 @@ def predict_from_state(tracker, current_pose_mat, time_step = 0.05, motion_model
     # Compute the relative transformation:
     # T_rel maps coordinates from the previous sensor frame into the current sensor frame.
     T_rel = np.linalg.inv(T_curr) @ T_prev
-
+    # Extract rotation from T_rel.
+    R_rel = T_rel[:3, :3]
+    
     # Update each previous track’s box by transforming its center using T_rel.
     # (Here we assume the box center is stored in the first three elements.)
     for track in tracker['track_states']:
@@ -173,6 +175,10 @@ def predict_from_state(tracker, current_pose_mat, time_step = 0.05, motion_model
         center_hom[:3] = center
         new_center = T_rel @ center_hom  # new center in current sensor frame.
         track['box'][:3] = new_center[:3]
+        # --- Adjust the velocity: transform from previous frame to current frame ---
+        if track.get('velocity') is not None:
+            # Multiply the velocity (a 3-vector) by the relative rotation.
+            track['velocity'] = R_rel @ track['velocity']
     
     # ---- Predict New Box Positions Using the Motion Model ----
     predicted_boxes = []

@@ -137,6 +137,8 @@ def eval_one_epoch(cfg, args, model, dataloader, epoch_id, logger, dist_test=Fal
         if i == 40:
             print("New sequence")
         
+        # print(f"Points: {batch_dict['points']}") # batch, x, y, z, intensity, dt
+
         if i != 40 and i % 20:  # Frame 40 is a new sequence
             # Crop current frame using previous detections
             points = crop_point_cloud(

@@ -149,7 +149,7 @@ def eval_one_epoch(cfg, args, model, dataloader, epoch_id, logger, dist_test=Fal
             )
             
             data_dict = dataset.process_pointcloud(points = points, frame_id = i)
-            new_col = np.zeros((data_dict['voxel_coords'].shape[0], 1))
+            new_col = np.zeros((data_dict['voxel_coords'].shape[0], 1)) #batch
             data_dict['voxel_coords'] = np.concatenate((new_col, data_dict['voxel_coords']), axis=1)
             data_dict['metadata'] = batch_dict['metadata']
             data_dict['frame_id'] = batch_dict['frame_id']

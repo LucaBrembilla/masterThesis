@@ -48,18 +48,3 @@ RUN wget https://jaist.dl.sourceforge.net/project/boost/boost/1.68.0/boost_1_68_
     rm -rf ./boost_1_68_0 && \
     rm -rf ./boost_1_68_0.tar.gz 
 
-# Install open3D
-
-# A weired problem that hasn't been solved yet
-RUN pip uninstall -y SharedArray && \
-    pip install SharedArray
-
-RUN pip install spconv-cu102
-
-# git clone https://github.com/traveller59/spconv.git --recursive
-# apt-get install -y libboost-all-dev
-# apt-get install -y cmake
-# cd spconv
-# pip install pccm
-# python setup.py bdist_wheel
-# pip install spconv-2.3.6-py3-none-any.whl

@@ -19,7 +19,6 @@ import torch
 import glob
 
 # Paths to your OpenPCDet configuration and model checkpoint
-# CFG_FILE = '/home/brembilla/exp/tools/cfgs/kitti_models/pv_rcnn_ros.yaml'
 CKPT = '/home/brembilla/exp/pretrained/pointpillar_7728.pth'
 
 # Global model instance

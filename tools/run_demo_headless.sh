@@ -33,21 +33,6 @@ POINT_CLOUD_DATA=/home/brembilla/exp/shared_datasets/PNRR/ouster/frame_0000.npy
 POINT_CLOUD_DATA=/home/brembilla/exp/shared_datasets/PNRR/ouster/example
 POINT_CLOUD_DATA=/media/airlab/000F9736000EFC5E/PNRR/ouster
 
-# POINT_CLOUD_DATA=/home/brembilla/exp/shared_datasets/PNRR/ouster/frame_2121.npy
-# cd ..
-
-# pip install spconv-cu102
-
-# python setup.py develop
-
-# cd tools
-
-# pip3 install --ignore-installed PyYAML
-
-# pip install open3d
-
-# python -m pcdet.datasets.kitti.kitti_dataset create_kitti_infos tools/cfgs/dataset_configs/kitti_dataset.yaml
-
 python demo_headless.py --cfg_file ${CGF_FILE} \
     --ckpt ${CKPT} \
     --data_path ${POINT_CLOUD_DATA} \

@@ -34,17 +34,6 @@ def pc_preprocess(pointcloud):
 
     print(f"New mean intensity: {np.mean(pointcloud[:, 3])}")
 
-    """
-    print(f"Original mean z: {np.mean(pointcloud[:, 2])}")
-    sub = np.max(pointcloud[:, 2])
-    print(f"Original mean z: {np.mean(pointcloud[:, 2])}")
-    pointcloud[:, 2] -= sub
-    print(f"Substracted {sub}, new mean z: {np.mean(pointcloud[:, 2])}")
-    pointcloud[:, 2] = -pointcloud[:, 2]
-    print(f"Inverted mean z: {np.mean(pointcloud[:, 2])}")
-    pointcloud[:, 2] = pointcloud[:, 2] - np.mean(pointcloud[:, 2])
-    """
-
     print(f"Original mean z: {np.mean(pointcloud[:, 2])}")
     sub = 4.4
     pointcloud[:, 2] -= sub
@@ -210,15 +199,6 @@ def main():
             # Postprocess the bounding boxes
             bb_postprocess(output_file, output_file, mean_value=0, add_amount=4.4)
 
-            """
-            V.draw_scenes(
-                points=data_dict['points'][:, 1:], ref_boxes=pred_dicts[0]['pred_boxes'],
-                ref_scores=pred_dicts[0]['pred_scores'], ref_labels=pred_dicts[0]['pred_labels']
-            )
-
-            if not OPEN3D_FLAG:
-                mlab.show(stop=True)
-            """
             logger.info(f'Inference done. Results are saved in {output_file}')
     logger.info('Demo done.')
 
